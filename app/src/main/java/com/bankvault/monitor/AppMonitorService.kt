@@ -56,17 +56,23 @@ class AppMonitorService : LifecycleService() {
 
         lifecycleScope.launch { graph.db.apps().observe().collect { list ->
             protectedPkgs = list.map { it.packageName }.toSet()
-            graph.sessions.updateConfigs(list)
-            graph.network.reconcileFromStore()
+            safe("apps changed") { graph.sessions.updateConfigs(list); graph.network.reconcileFromStore() }
         } }
         lifecycleScope.launch { pollForeground() }
-        lifecycleScope.launch { while (isActive) { graph.sessions.tick(); delay(1_000) } }
-        lifecycleScope.launch { while (isActive) { graph.tamper.run(); graph.network.verifyAll(); delay(60_000) } }
+        lifecycleScope.launch { while (isActive) { safe("session tick") { graph.sessions.tick() }; delay(1_000) } }
+        lifecycleScope.launch { while (isActive) { safe("tamper check") { graph.tamper.run(); graph.network.verifyAll() }; delay(60_000) } }
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         super.onStartCommand(intent, flags, startId)
         return START_STICKY
+    }
+
+    /** One failing iteration must never kill the protection service. */
+    private suspend fun safe(where: String, block: suspend () -> Unit) {
+        try { block() } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) {
+            com.bankvault.CrashReporter.recordHandled(this, "monitor: $where", e)
+        }
     }
 
     private suspend fun pollForeground() {
@@ -87,8 +93,10 @@ class AppMonitorService : LifecycleService() {
             val fg = resumed
             if (fg != null && fg != lastForeground) {
                 lastForeground = fg
-                graph.sessions.onForeground(fg)
-                if (fg in protectedPkgs && !graph.sessions.isUnlocked(fg)) onProtectedLaunch(fg)
+                safe("foreground change") {
+                    graph.sessions.onForeground(fg)
+                    if (fg in protectedPkgs && !graph.sessions.isUnlocked(fg)) onProtectedLaunch(fg)
+                }
             }
             delay(POLL_MS)
         }

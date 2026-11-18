@@ -56,7 +56,7 @@ import kotlinx.coroutines.launch
 
 @Composable
 fun MoreScreen(activity: FragmentActivity, graph: AppGraph, fixer: Fixer) {
-    val scope = rememberCoroutineScope()
+    val scope = rememberSafeScope()
     val settings by graph.settings.state.collectAsStateWithLifecycle()
     var pendingAction by remember { mutableStateOf<Pair<String, () -> Unit>?>(null) }
     var note by remember { mutableStateOf<String?>(null) }
@@ -273,7 +273,7 @@ private fun PolicyChips(current: AuthPolicy, onPick: (AuthPolicy) -> Unit) {
 /** Change requires the current PIN of the same kind (verified with the brute-force limiter). */
 @Composable
 private fun ChangePin(graph: AppGraph, title: String, kind: PinRepository.Kind) {
-    val scope = rememberCoroutineScope()
+    val scope = rememberSafeScope()
     var open by remember { mutableStateOf(false) }
     var stage by remember { mutableStateOf(0) }
     var newPin by remember { mutableStateOf<CharArray?>(null) }
@@ -323,7 +323,7 @@ private fun fixFor(f: com.bankvault.core.compat.Feature, realme: Boolean): Pair<
 
 @Composable
 private fun CompatibilitySection(activity: FragmentActivity, graph: AppGraph, fixer: Fixer) {
-    val scope = rememberCoroutineScope()
+    val scope = rememberSafeScope()
     val settings by graph.settings.state.collectAsStateWithLifecycle()
     var rows by remember { mutableStateOf<List<CompatEntry>>(emptyList()) }
     var header by remember { mutableStateOf("") }
@@ -370,7 +370,7 @@ private fun CompatibilitySection(activity: FragmentActivity, graph: AppGraph, fi
 
 @Composable
 private fun RecoverySection(activity: FragmentActivity, graph: AppGraph) {
-    val scope = rememberCoroutineScope()
+    val scope = rememberSafeScope()
     var verified by remember { mutableStateOf(false) }
     var msg by remember { mutableStateOf<String?>(null) }
     SectionCard("Recovery") {

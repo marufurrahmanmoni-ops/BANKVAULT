@@ -34,7 +34,7 @@ fun OnboardingScreen(activity: FragmentActivity, graph: AppGraph, onDone: () -> 
     var step by remember { mutableIntStateOf(0) }
     var first by remember { mutableStateOf<CharArray?>(null) }
     var error by remember { mutableStateOf<String?>(null) }
-    val scope = rememberCoroutineScope()
+    val scope = rememberSafeScope()
 
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp)) {
         Text("BANKVAULT", style = MaterialTheme.typography.headlineMedium)

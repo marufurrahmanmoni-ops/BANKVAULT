@@ -84,7 +84,7 @@ suspend fun expandShortLink(url: String): List<String> = withContext(Dispatchers
 @Composable
 fun ScanScreen(graph: AppGraph, initialText: String?, source: String = "manual") {
     val ctx = LocalContext.current
-    val scope = rememberCoroutineScope()
+    val scope = rememberSafeScope()
     var input by remember { mutableStateOf(initialText ?: "") }
     var report by remember { mutableStateOf<UrlReport?>(null) }
     var chain by remember { mutableStateOf<List<String>>(emptyList()) }

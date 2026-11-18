@@ -61,8 +61,12 @@ class LockActivity : FragmentActivity() {
                                     packageName = pkg) {
                                     granting = true
                                     lifecycleScope.launch {
-                                        graph.sessions.grant(pkg)
-                                        graph.installed.launchIntent(pkg)?.let { startActivity(it.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
+                                        try {
+                                            graph.sessions.grant(pkg)
+                                        } catch (e: Exception) {
+                                            com.bankvault.CrashReporter.recordHandled(this@LockActivity, "unlock $pkg", e)
+                                        }
+                                        graph.installed.launchIntent(pkg)?.let { runCatching { startActivity(it.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) } }
                                         finish()
                                     }
                                 } else Text("Opening $label…")

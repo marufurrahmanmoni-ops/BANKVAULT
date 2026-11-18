@@ -28,7 +28,7 @@ object KeystoreManager {
     private val ks: KeyStore get() = KeyStore.getInstance(STORE).apply { load(null) }
 
     val pepper: Pepper = Pepper { input ->
-        Mac.getInstance("HmacSHA256").run { init(pepperKey()); doFinal(input) }
+        synchronized(this) { withRetry { Mac.getInstance("HmacSHA256").run { init(pepperKey()); doFinal(input) } } }
     }
 
     private fun pepperKey(): SecretKey = (ks.getKey(PEPPER_KEY, null) as? SecretKey)
@@ -56,15 +56,34 @@ object KeystoreManager {
         }
     }
 
-    fun encrypt(plain: ByteArray): ByteArray {
-        val c = Cipher.getInstance("AES/GCM/NoPadding"); c.init(Cipher.ENCRYPT_MODE, dataKey())
-        return c.iv + c.doFinal(plain)
+    @Volatile private var cachedDataKey: SecretKey? = null
+    private fun dataKeyCached(): SecretKey = cachedDataKey ?: dataKey().also { cachedDataKey = it }
+
+    /**
+     * Keystore can transiently fail ("backend busy", too many concurrent operations) – especially
+     * on emulators and some OEM builds. Operations are serialised and retried a few times.
+     */
+    private fun <T> withRetry(block: () -> T): T {
+        var last: Exception? = null
+        repeat(4) { attempt ->
+            try { return block() } catch (e: java.security.GeneralSecurityException) { last = e } catch (e: java.security.ProviderException) { last = e }
+            catch (e: IllegalStateException) { last = e }
+            Thread.sleep(40L * (attempt + 1))
+        }
+        throw last ?: IllegalStateException("Keystore operation failed")
     }
 
-    fun decrypt(blob: ByteArray): ByteArray {
+    @Synchronized
+    fun encrypt(plain: ByteArray): ByteArray = withRetry {
+        val c = Cipher.getInstance("AES/GCM/NoPadding"); c.init(Cipher.ENCRYPT_MODE, dataKeyCached())
+        c.iv + c.doFinal(plain)
+    }
+
+    @Synchronized
+    fun decrypt(blob: ByteArray): ByteArray = withRetry {
         val c = Cipher.getInstance("AES/GCM/NoPadding")
-        c.init(Cipher.DECRYPT_MODE, dataKey(), GCMParameterSpec(128, blob, 0, 12))
-        return c.doFinal(blob, 12, blob.size - 12)
+        c.init(Cipher.DECRYPT_MODE, dataKeyCached(), GCMParameterSpec(128, blob, 0, 12))
+        c.doFinal(blob, 12, blob.size - 12)
     }
 
     // ---- Biometric-bound key ----

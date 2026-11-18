@@ -27,7 +27,7 @@ import kotlinx.coroutines.launch
  */
 @Composable
 fun ForgotPinScreen(graph: AppGraph, onDone: () -> Unit) {
-    val scope = rememberCoroutineScope()
+    val scope = rememberSafeScope()
     var stage by remember { mutableIntStateOf(0) }
     var first by remember { mutableStateOf<CharArray?>(null) }
     var msg by remember { mutableStateOf<String?>(null) }

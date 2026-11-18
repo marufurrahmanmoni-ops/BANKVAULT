@@ -15,6 +15,7 @@ class BankVaultApp : Application(), Configuration.Provider {
 
     override fun onCreate() {
         super.onCreate()
+        CrashReporter.install(this)
         graph = AppGraph(this)
         graph.alerts.ensureChannels()
         graph.threats.load()

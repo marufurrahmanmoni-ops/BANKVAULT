@@ -37,6 +37,7 @@ import com.bankvault.security.PinRepository
 import com.bankvault.ui.BvColors
 import com.bankvault.ui.Dim
 import com.bankvault.ui.PinPad
+import com.bankvault.ui.rememberSafeScope
 import com.bankvault.ui.formatDuration
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -56,7 +57,7 @@ fun AuthPanel(
     packageName: String? = null,
     onSuccess: () -> Unit,
 ) {
-    val scope = rememberCoroutineScope()
+    val scope = rememberSafeScope()
     val bio = remember { Biometric.availability(activity) }
     var challenge by remember { mutableStateOf(AuthChallenge(AuthRequirements.required(policy, bio == Biometric.Availability.USABLE))) }
     var message by remember { mutableStateOf<String?>(null) }

@@ -38,7 +38,9 @@ import kotlinx.coroutines.flow.MutableStateFlow
  */
 class AppGraph(val context: Context) {
     val clock = SystemClock
-    val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+    /** Background work never crashes the app: errors are logged and shown as a crash report instead. */
+    val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default +
+        kotlinx.coroutines.CoroutineExceptionHandler { _, e -> CrashReporter.recordHandled(context, "background task", e) })
     val db = BankVaultDatabase.create(context)
     val securePrefs = SecurePrefs(context)
     val settings = SettingsStore(securePrefs)

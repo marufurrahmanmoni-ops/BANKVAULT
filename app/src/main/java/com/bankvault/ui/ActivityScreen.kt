@@ -43,7 +43,7 @@ private enum class LogFilter(val label: String, val types: Set<AuditType>?) {
 @Composable
 fun ActivityScreen(activity: FragmentActivity, graph: AppGraph) {
     val ctx = LocalContext.current
-    val scope = rememberCoroutineScope()
+    val scope = rememberSafeScope()
     val events by graph.audit.observe().collectAsStateWithLifecycle(emptyList())
     var filter by remember { mutableStateOf(LogFilter.ALL) }
     var confirmClear by remember { mutableStateOf(false) }

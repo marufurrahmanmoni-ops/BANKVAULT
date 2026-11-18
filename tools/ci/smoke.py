@@ -163,11 +163,21 @@ def wait_text(text, timeout=20):
     return find(text, timeout=timeout) is not None
 
 
+def start_testbank():
+    """Fresh TestBank process so its onCreate probes run (and no DNS cache from earlier runs)."""
+    sh(f"am force-stop {TB}"); time.sleep(1)
+    adb("logcat", "-c")
+    sh(f"am start -n {TB}/.MainActivity")
+
+
 def probes(tag):
-    time.sleep(8)
-    out = adb("logcat", "-d", "-s", "TestBank:I")
-    lines = [l for l in out.splitlines() if "transport" in l]
-    last = lines[-1] if lines else ""
+    last = ""
+    for _ in range(30):           # probes can take ~20 s when everything times out
+        out = adb("logcat", "-d", "-s", "TestBank:I")
+        lines = [l for l in out.splitlines() if "transport" in l]
+        if lines:
+            last = lines[-1]; break
+        time.sleep(1)
     log(f"TestBank probes ({tag}): {last}")
     return last
 
@@ -233,8 +243,7 @@ def main():
 
     # ---------- 4. Locked TestBank: lock screen + network blocked ----------
     sh("input keyevent KEYCODE_HOME"); time.sleep(2)
-    adb("logcat", "-c")
-    sh(f"am start -n {TB}/.MainActivity"); time.sleep(4)
+    start_testbank(); time.sleep(4)
     t = screen("open TestBank while locked")
     result("lock screen shown over TestBank", any("is protected" in x for x in t))
     p = probes("locked")
@@ -263,8 +272,7 @@ def main():
     tap("EMERGENCY LOCK", scroll=False); time.sleep(6)
     screen("after emergency lock")
     sh("input keyevent KEYCODE_HOME"); time.sleep(1)
-    adb("logcat", "-c")
-    sh(f"am start -n {TB}/.MainActivity"); time.sleep(4)
+    start_testbank(); time.sleep(4)
     result("lock screen after emergency", wait_text("is protected", 6))
     p = probes("after emergency")
     result("after emergency: IPv4 blocked", "IPv4: BLOCKED" in p, p)
@@ -275,7 +283,11 @@ def main():
     back_to_bankvault()
     tap("Scan", exact=True, scroll=False); time.sleep(2)
     n = find("Paste a link", timeout=5)
-    if n: tap_node(n); sh("input text 'https://bankvault-phishing-test.example/login'"); time.sleep(1); sh("input keyevent KEYCODE_BACK")
+    if n is not None:
+        tap_node(n); time.sleep(2)
+        sh("input text https://bankvault-phishing-test.example/login"); time.sleep(2)
+        sh("input keyevent KEYCODE_BACK"); time.sleep(1)
+    screen("scan input")
     # Both the bottom tab and the button are labelled "Scan": press the upper one (the button).
     scans = sorted([n for n in nodes() if label(n) == "Scan"], key=lambda n: center(n)[1])
     if scans: tap_node(scans[0])

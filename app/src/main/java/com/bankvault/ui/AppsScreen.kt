@@ -45,7 +45,7 @@ import kotlinx.coroutines.launch
 @Composable
 fun AppsScreen(graph: AppGraph) {
     val ctx = LocalContext.current
-    val scope = rememberCoroutineScope()
+    val scope = rememberSafeScope()
     val apps by graph.db.apps().observe().collectAsStateWithLifecycle(emptyList())
     val settings by graph.settings.state.collectAsStateWithLifecycle()
     val sessions by graph.sessions.active.collectAsStateWithLifecycle()

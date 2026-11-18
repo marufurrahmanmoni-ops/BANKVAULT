@@ -77,7 +77,7 @@ fun interface Fixer { fun run(kind: FixKind) }
  */
 @Composable
 fun FixHost(activity: FragmentActivity, graph: AppGraph, onNavigate: (Tab) -> Unit, content: @Composable (Fixer) -> Unit) {
-    val scope = rememberCoroutineScope()
+    val scope = rememberSafeScope()
     var dialog by remember { mutableStateOf<FixKind?>(null) }
     fun toast(msg: String) = Toast.makeText(activity, msg, Toast.LENGTH_LONG).show()
 
