@@ -45,12 +45,18 @@ object Probes {
             else -> "other"
         }
         val lines = mutableListOf("transport(as seen by TestBank)=$transport")
-        lines += probe("IPv4") { http("https://1.1.1.1/cdn-cgi/trace") }
-        lines += probe("IPv6") { http("https://[2606:4700:4700::1111]/cdn-cgi/trace") }
-        lines += probe("DNS") { InetAddress.getAllByName("example.com").joinToString { it.hostAddress ?: "?" } }
-        lines += probe("HTTPS") { http("https://example.com/") }
+        lines += timed("IPv4") { http("https://1.1.1.1/cdn-cgi/trace") }
+        lines += timed("IPv6") { http("https://[2606:4700:4700::1111]/cdn-cgi/trace") }
+        lines += timed("DNS") { InetAddress.getAllByName("example.com").joinToString { it.hostAddress ?: "?" } }
+        lines += timed("HTTPS") { http("https://example.com/") }
         lines.joinToString("\n").also { Log.i("TestBank", it.replace("\n", " | ")) }
     }
+
+    /** Each probe gets at most 12 s (DNS has no timeout of its own on Android). */
+    private suspend fun timed(name: String, block: () -> String): String =
+        kotlinx.coroutines.withTimeoutOrNull(12_000) {
+            kotlinx.coroutines.runInterruptible(Dispatchers.IO) { probe(name, block) }
+        } ?: "$name: BLOCKED (timeout)"
 
     private inline fun probe(name: String, block: () -> String) =
         try { "$name: OK (${block().take(40).replace('\n', ' ')})" } catch (e: Exception) { "$name: BLOCKED (${e.javaClass.simpleName})" }

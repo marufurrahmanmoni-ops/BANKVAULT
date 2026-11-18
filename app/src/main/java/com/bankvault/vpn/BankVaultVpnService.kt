@@ -13,6 +13,7 @@ import com.bankvault.BankVaultApp
 import com.bankvault.core.audit.AuditEvent
 import com.bankvault.core.audit.AuditType
 import com.bankvault.core.network.Transport
+import com.bankvault.core.vpn.PacketResponder
 import com.bankvault.core.vpn.VpnPlan
 import com.bankvault.core.vpn.VpnPlanner
 import kotlinx.coroutines.CoroutineScope
@@ -21,12 +22,14 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import java.io.FileInputStream
+import java.io.FileOutputStream
 
 /**
  * Mode D – local blackhole VPN.
  *
  * Only the locked banking apps are placed inside the tunnel (addAllowedApplication). Their packets
- * are read from the TUN fd and discarded without inspection. All other apps, and BANKVAULT itself,
+ * are read from the TUN fd and discarded; TCP connects and DNS queries get an immediate refusal
+ * (core/vpn/PacketResponder) so the app fails fast instead of hanging. Payloads are never inspected. All other apps, and BANKVAULT itself,
  * are outside the VPN and keep normal Wi-Fi / Mobile Data access.
  *
  * Leak handling:
@@ -133,11 +136,15 @@ class BankVaultVpnService : VpnService() {
         drainThread = Thread({
             val buf = ByteArray(32 * 1024)
             try {
+                val output = FileOutputStream(fd.fileDescriptor)
                 FileInputStream(fd.fileDescriptor).use { input ->
                     while (!Thread.currentThread().isInterrupted) {
                         val n = input.read(buf)
                         if (n < 0) break
-                        if (n > 0) VpnController.droppedPackets.value += 1 // drop; contents never parsed
+                        if (n == 0) continue
+                        VpnController.droppedPackets.value += 1
+                        // Fail fast: refuse TCP connects and DNS queries instead of letting them time out.
+                        PacketResponder.respond(buf, n)?.let { runCatching { output.write(it) } }
                     }
                 }
             } catch (_: Exception) { /* fd closed on re-plan/teardown */ }
