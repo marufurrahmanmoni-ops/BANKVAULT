@@ -44,7 +44,7 @@ class ManagedDeviceController(private val context: Context) : AppAccessControlle
         if (!canRestrict || packages.isEmpty()) return emptySet()
         val failed = dpm.setPackagesSuspended(admin, packages.toTypedArray(), true).toSet()
         val ok = packages - failed
-        ok.filter(hideAsWell).forEach { runCatching { dpm.setApplicationHidden(admin, it, true) } }
+        ok.filter { hideAsWell(it) }.forEach { runCatching { dpm.setApplicationHidden(admin, it, true) } }
         return ok.filter { isSuspended(it) }.toSet()
     }
 

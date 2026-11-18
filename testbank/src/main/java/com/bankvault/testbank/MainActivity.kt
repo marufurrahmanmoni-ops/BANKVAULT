@@ -49,7 +49,7 @@ object Probes {
         lines += probe("IPv6") { http("https://[2606:4700:4700::1111]/cdn-cgi/trace") }
         lines += probe("DNS") { InetAddress.getAllByName("example.com").joinToString { it.hostAddress ?: "?" } }
         lines += probe("HTTPS") { http("https://example.com/") }
-        lines.joinToString("\n").also { Log.i("TestBank", it.replace('\n', ' | ')) }
+        lines.joinToString("\n").also { Log.i("TestBank", it.replace("\n", " | ")) }
     }
 
     private inline fun probe(name: String, block: () -> String) =
