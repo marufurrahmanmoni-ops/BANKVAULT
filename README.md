@@ -2,46 +2,40 @@
 
 Developed by **Md. Marufur Rahman Moni**.
 
-Banking-app protection for Android 14–16 (Realme UI / ColorOS focus): a separate PIN/biometric lock, per-app network isolation for
-locked banking apps, phishing/QR/link scanning, tamper monitoring, emergency lock and safe recovery.
+A simple, private app lock for Android (Android 10 – 16, tested on Realme UI flows).
 
-**Honesty rule:** a protection is shown as *Protected/Blocked/Hidden* (green) only after it has been applied **and read back**.
-Anything Android does not allow a normal app to do is shown as *Manual Setup Required*, *Requires Device Owner*, *Requires Root*,
-*Verification Unavailable* or *Unsupported* – never simulated. BANKVAULT never claims 100 % protection.
+## Features
+- **App lock** – choose apps; opening one asks for your own 6–8 digit BANKVAULT PIN (or fingerprint).
+  Locks again immediately / after 1 or 5 minutes when you leave the app, and whenever the screen turns off.
+- **Network access off** – optional: locked apps get no Wi-Fi or mobile data until unlocked. Uses a local VPN that
+  contains only the locked apps; no server, nothing is read or sent, other apps keep working.
+- **App hide** – with Device Owner, locked apps disappear from the home screen and are opened from BANKVAULT's
+  "Open" button. Without Device Owner (Android does not allow hiding other apps), BANKVAULT shows how to use
+  Realme's built-in *Hide apps*.
+- No internet permission, no accounts, PIN stored only as a salted hash bound to the phone's secure hardware.
+- Wrong-PIN delays (30 s after 3 tries, growing to 1 h), survives reboot.
+- Crash reports are shown in the app and can be shared – they contain no PINs or personal data.
 
-## What actually stops a locked banking app
+## Download
+GitHub → **Actions** → **Build APK** → newest green run → **Artifacts** → `bankvault-debug-apk`.
 
-| Your phone | Can the locked app run? | Can it reach its servers? |
-|---|---|---|
-| Normal phone | Yes, but BANKVAULT's lock screen covers it (best effort) | **No** – local blackhole VPN (while running; enable Always-on VPN) |
-| Rooted | Yes, lock screen covers it | **No** – iptables + ip6tables UID rules (survive BANKVAULT being killed) |
-| Device Owner provisioned | **No** – package suspended & hidden | No – VPN or root as above |
-| Phone's own *Network access* switch only | Yes | Probably not – but BANKVAULT cannot verify it |
+All builds are signed with the same key (`app/debug.keystore`), so new versions install as updates.
+**If you installed a version before 2.0.0, uninstall it once first** (it was signed with a different key).
 
-## Status of this delivery
+## Permissions
+| Permission | Why |
+|---|---|
+| Usage access | Know when a locked app is opened |
+| Display over other apps | Show the lock screen on top of it |
+| Notifications (optional) | "App lock is on" notification |
+| VPN (only if Network access off is on) | Block locked apps' internet |
 
-* `:core` – all platform-free security logic. **43/43 unit tests executed and passing** ([output](docs/test-results/core-unit-tests.txt)).
-* `:app` – complete Android source (Compose UI, Room, Keystore, BiometricPrompt, UsageStats monitor, VpnService, root firewall,
-  DevicePolicyManager, Quick Settings tile, widget, WorkManager). **Builds on GitHub Actions**: every push produces
-  `bankvault-debug-apk` and `testbank-debug-apk` under *Actions → Build APK → latest run → Artifacts*.
-* `:testbank` – dummy bank app for the acceptance tests.
-* On-device acceptance tests: **not run yet** – procedures in [TEST_REPORT](docs/TEST_REPORT.md).
+## Forgot PIN
+Settings › Apps › BANKVAULT › Storage › Clear data. This resets BANKVAULT only; no other app or data is touched.
 
-## Documentation
-* [Feasibility matrix](docs/FEASIBILITY.md) – what is possible on which device, and why
-* [Architecture](docs/ARCHITECTURE.md) – modules, flows, DB schema
-* [Install & build](docs/INSTALL.md) · [Permissions](docs/PERMISSIONS.md)
-* [Network security](docs/NETWORK_SECURITY.md) · [Cyber threat protection](docs/CYBER_THREAT_PROTECTION.md)
-* [Device Owner setup](docs/DEVICE_OWNER_SETUP.md) · [Root setup](docs/ROOT_SETUP.md)
-* [Recovery](docs/RECOVERY.md) · [Test report](docs/TEST_REPORT.md)
+## Tests
+Every push runs `:core` unit tests and an end-to-end test on Android 14 and 15 emulators (`tools/ci/smoke.py`):
+create PIN, notification permission, lock TestBank, VPN permission, lock screen, wrong/correct PIN, internet blocked
+while locked and restored after unlock, relock after leaving, Open button, Hide help, About, force-stop, 1 500 random taps.
 
-## Known limitations
-* Without Device Owner, launch interception is best-effort (UsageStats polling): the app may be visible for a moment, and
-  nothing intercepts launches if BANKVAULT is force-stopped. Network isolation is the real boundary.
-* Only one VPN can run on Android; another VPN app disables BANKVAULT's network isolation (detected and alerted).
-* Realme/ColorOS *Network access* and *Hide apps* have no public API – guided manual setup only, unverifiable.
-* Root rules are re-applied at BOOT_COMPLETED; there is a short window early in boot.
-* Wi-Fi-only / Mobile-only rules in VPN mode have a brief transition window during a network switch (default rule blocks both).
-* Device-wide malicious-domain blocking relies on Android Private DNS with a filtering provider; the link scanner itself only warns.
-* Not an antivirus; does not inspect encrypted traffic; collects no credentials, OTPs or banking screens.
-* Library versions in `gradle/libs.versions.toml` were chosen offline; Android Studio may suggest updates.
+The earlier full version (threat scanner, root firewall, emergency tile, …) is kept on branch `claude/bankvault-full`.

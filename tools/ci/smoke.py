@@ -188,158 +188,123 @@ def back_to_bankvault():
         enter_pin(PIN, "Unlock"); time.sleep(4)
 
 
+def toggle_for(text):
+    """Tap the switch on the same row as the given text."""
+    n = find(text, timeout=6)
+    if n is None:
+        log(f"!! no row '{text}'"); return False
+    _, y = center(n)
+    sw = [m for m in nodes() if m.get("checkable") == "true"]
+    if not sw:
+        log("!! no switches on screen"); return False
+    best = min(sw, key=lambda m: abs(center(m)[1] - y))
+    tap_node(best); return True
+
+
+def unlock_bankvault():
+    if find("Enter your PIN", timeout=4) is not None:
+        enter_pin(PIN, "Unlock"); time.sleep(3)
+
+
 def main():
     app_apk, tb_apk = sys.argv[1], sys.argv[2]
-    adb("install", "-r", app_apk, timeout=240)          # no -g: runtime permissions go through the real dialogs
+    adb("install", "-r", app_apk, timeout=240)
     adb("install", "-r", "-g", tb_apk, timeout=240)
     adb("logcat", "-c"); adb("logcat", "-c", "-b", "crash")
-    # Permissions the owner would grant through the Fix buttons.
-    # Special-access settings have no dialog an app can show; grant them like the owner does in Settings.
-    # Notifications and VPN consent are NOT pre-granted: the real system dialogs are exercised below.
+    # Special access is granted in Settings by the owner; notifications + VPN go through real dialogs.
     sh(f"appops set {PKG} GET_USAGE_STATS allow")
     sh(f"appops set {PKG} SYSTEM_ALERT_WINDOW allow")
-    sh("settings put global development_settings_enabled 0")
 
-    # ---------- 1. First launch + onboarding ----------
+    # 1. First launch: create PIN
     sh(f"am start -W -n {PKG}/com.bankvault.ui.MainActivity"); time.sleep(4)
     screen("first launch")
-    result("launch", check_no_crash("launch") and wait_text("BANKVAULT"))
-    tap("Set up security PIN")
     ok = enter_pin(PIN, "Next"); time.sleep(1)
-    ok &= enter_pin(PIN, "Next"); time.sleep(3)
-    screen("after main PIN")
-    ok &= enter_pin(RPIN, "Next"); time.sleep(1)
-    ok &= enter_pin(RPIN, "Next"); time.sleep(4)
-    screen("after recovery PIN")
-    ok &= tap("Open dashboard", timeout=30)
-    time.sleep(3)
-    screen("notification permission dialog")
-    # Deny here, so the dashboard "Allow notifications" Fix button (the crash reported on Realme) is tested next.
-    denied = tap("Don", scroll=False, timeout=8)
-    result("onboarding asks for notifications", denied)
-    time.sleep(3)
-    result("onboarding", ok and check_no_crash("onboarding") and wait_text("Overall security"))
-    screen("dashboard (before setup)")
-    tap("Allow notifications", timeout=6); time.sleep(3)
-    screen("notification dialog from Fix button")
-    tap("Allow", exact=True, scroll=False, timeout=8); time.sleep(3)
-    granted = "granted" in sh(f"dumpsys package {PKG} | grep POST_NOTIFICATIONS")
-    result("Fix button: Allow notifications works", check_no_crash("allow notifications") and granted)
+    ok &= enter_pin(PIN, "Next"); time.sleep(5)
+    t = screen("home")
+    result("create PIN", check_no_crash("create PIN") and ok and wait_text("App lock is working", 10))
+
+    # 2. Notifications via the Allow button (the Realme crash)
+    tap("Allow", exact=True, scroll=False, timeout=6); time.sleep(3)
+    screen("notification dialog")
+    tap("Allow", exact=True, scroll=False, timeout=6); time.sleep(3)
+    result("notifications Allow button", check_no_crash("allow notifications") and "granted=true" in sh(f"dumpsys package {PKG} | grep POST_NOTIFICATIONS"))
+
+    # 3. Lock TestBank
+    n = find("Search", timeout=6)
+    if n is not None:
+        tap_node(n); time.sleep(1); sh("input text TestBank"); time.sleep(1); sh("input keyevent KEYCODE_BACK"); time.sleep(2)
+    screen("search TestBank")
+    result("lock TestBank switch", toggle_for("TestBank (BANKVAULT test)") and wait_text("Locked", 6))
+
+    # 4. Network access off (real VPN dialog)
     scroll_to_top()
+    toggle_for("Block internet for locked apps"); time.sleep(3)
+    screen("vpn dialog")
+    tap("OK", exact=True, scroll=False, timeout=8); time.sleep(6)
+    t = screen("after network on")
+    result("network access off enabled", check_no_crash("vpn") and wait_text("internet blocked for 1", 10))
 
-    # ---------- 2. Add TestBank as protected app ----------
-    tap("Apps", exact=True, scroll=False); time.sleep(2)
-    tap("Add apps", scroll=False); time.sleep(3)
-    screen("app picker")
-    if find("com.bankvault.testbank", timeout=3) is None:
-        result("picker lists TestBank", False)
-    else:
-        result("picker lists TestBank", True)
-    tap("Protect", exact=True, scroll=False); time.sleep(4)
-    screen("apps screen")
-    result("TestBank protected", check_no_crash("add app") and wait_text("TestBank"))
-
-    # ---------- 3. Dashboard fixes: network block ----------
-    tap("Security", exact=True, scroll=False); time.sleep(3)
-    screen("dashboard after adding app")
-    tap("Turn on network block"); time.sleep(3)
-    screen("VPN consent dialog")
-    tap("OK", exact=True, scroll=False, timeout=8); time.sleep(8)
-    scroll_to_top()
-    t = screen("dashboard after enabling VPN")
-    result("network block enabled", check_no_crash("enable vpn") and (any(x == "Blocked" for x in t) or wait_text("Verified", 10)))
-    tap("Add tile", timeout=4); time.sleep(3)
-    screen("add tile dialog"); sh("input keyevent KEYCODE_BACK"); time.sleep(1)
-    tap("Set up (1 minute)", timeout=4); time.sleep(2)
-    screen("private DNS dialog"); tap("Close", exact=True, scroll=False)
-    check_no_crash("dashboard fixes")
-
-    # ---------- 4. Locked TestBank: lock screen + network blocked ----------
+    # 5. Open TestBank while locked
     sh("input keyevent KEYCODE_HOME"); time.sleep(2)
     start_testbank(); time.sleep(4)
-    t = screen("open TestBank while locked")
-    result("lock screen shown over TestBank", any("is protected" in x for x in t))
+    screen("TestBank while locked")
+    result("lock screen over TestBank", wait_text("is locked", 6))
     p = probes("locked")
-    result("locked: IPv4 blocked", "IPv4: BLOCKED" in p, p)
-    result("locked: IPv6 blocked", "IPv6: BLOCKED" in p or "IPv6: OK" not in p, p)
-    result("locked: DNS blocked", "DNS: BLOCKED" in p, p)
-    # Other apps still online
-    # adb shell (uid 2000) is not a protected app, so it must still reach the internet.
+    result("locked: no internet (IPv4)", "IPv4: BLOCKED" in p, p)
+    result("locked: no DNS", "DNS: BLOCKED" in p, p)
     other = sh("echo | toybox nc -w 5 1.1.1.1 443 >/dev/null 2>&1 && echo NET_OK || echo NET_FAIL")
     result("other apps keep internet", "NET_OK" in other, other.strip())
-
-    # Wrong PIN
     enter_pin("111222", "Unlock"); time.sleep(2)
     result("wrong PIN rejected", wait_text("Wrong PIN", 5))
-    # Correct PIN -> session
     adb("logcat", "-c")
-    enter_pin(PIN, "Unlock"); time.sleep(6)
+    enter_pin(PIN, "Unlock"); time.sleep(5)
     t = screen("after correct PIN")
-    result("TestBank opens after PIN", any("transport" in x or "Run network probes" in x for x in t))
+    result("TestBank usable after PIN", any("Run network probes" in x for x in t))
+    tap("Run network probes", scroll=False)
     p = probes("unlocked")
-    result("unlocked: IPv4 allowed", "IPv4: OK" in p, p)
-    check_no_crash("session")
+    result("unlocked: internet back", "IPv4: OK" in p, p)
+    check_no_crash("unlock")
 
-    # ---------- 5. Emergency lock -> blocked again ----------
-    back_to_bankvault()
-    tap("Security", exact=True, scroll=False); scroll_to_top()
-    result("emergency button found", tap("EMERGENCY LOCK", scroll=False)); time.sleep(6)
-    screen("after emergency lock")
-    sh("input keyevent KEYCODE_HOME"); time.sleep(1)
+    # 6. Leave -> relocks immediately (default)
+    sh("input keyevent KEYCODE_HOME"); time.sleep(3)
     start_testbank(); time.sleep(4)
-    result("lock screen after emergency", wait_text("is protected", 6))
-    p = probes("after emergency")
-    result("after emergency: IPv4 blocked", "IPv4: BLOCKED" in p, p)
+    result("relocks after leaving", wait_text("is locked", 6))
+    p = probes("relocked")
+    result("relocked: no internet", "IPv4: BLOCKED" in p, p)
     tap("Cancel", exact=True, scroll=False)
-    check_no_crash("emergency")
 
-    # ---------- 6. Scanner ----------
-    back_to_bankvault()
-    tap("Scan", exact=True, scroll=False); time.sleep(2)
-    n = find("Paste a link", timeout=5)
+    # 7. Open button inside BANKVAULT
+    sh(f"am start -n {PKG}/com.bankvault.ui.MainActivity"); time.sleep(3)
+    unlock_bankvault()
+    n = find("Search", timeout=4)
     if n is not None:
-        tap_node(n); time.sleep(2)
-        sh("input text https://bankvault-phishing-test.example/login"); time.sleep(2)
-        sh("input keyevent KEYCODE_BACK"); time.sleep(1)
-    screen("scan input")
-    # Both the bottom tab and the button are labelled "Scan": press the upper one (the button).
-    scans = sorted([n for n in nodes() if label(n) == "Scan"], key=lambda n: center(n)[1])
-    if scans: tap_node(scans[0])
-    time.sleep(3)
-    t = screen("scan result")
-    result("scanner flags test phishing domain", any("Confirmed malicious" in x for x in t))
-    check_no_crash("scan")
+        tap_node(n); time.sleep(1); sh("input text TestBank"); sh("input keyevent KEYCODE_BACK"); time.sleep(2)
+    tap("Open", exact=True, timeout=6); time.sleep(3)
+    ok = wait_text("is locked", 5)
+    enter_pin(PIN, "Unlock"); time.sleep(4)
+    result("Open button: PIN then app opens", ok and wait_text("Run network probes", 8))
 
-    # ---------- 7. Visit every tab and scroll ----------
-    for tab in ["Activity", "More", "Apps", "Security"]:
-        tap(tab, exact=True, scroll=False); time.sleep(3)
-        screen(f"tab {tab} (top)")
-        for i in range(6):
-            swipe_up()
-        screen(f"tab {tab} (bottom)")
-        scroll_to_top()
-        check_no_crash(f"tab {tab}")
+    # 8. Hide help + settings + About
+    sh(f"am start -n {PKG}/com.bankvault.ui.MainActivity"); time.sleep(3)
+    unlock_bankvault()
+    n = find("Search", timeout=4)
+    if n is not None:
+        tap_node(n); time.sleep(1); sh("input text TestBank"); sh("input keyevent KEYCODE_BACK"); time.sleep(2)
+    tap("Hide", exact=True, timeout=6); time.sleep(2)
+    screen("hide help")
+    result("Hide shows instructions (no Device Owner)", wait_text("Hide apps", 5))
+    tap("Copy command", scroll=False); time.sleep(1)
+    result("About shows developer", tap("Md. Marufur Rahman Moni", max_swipes=20))
+    screen("bottom")
+    check_no_crash("settings")
 
-    # ---------- 7b. About ----------
-    tap("More", exact=True, scroll=False); time.sleep(2)
-    result("About shows developer name", tap("Md. Marufur Rahman Moni", max_swipes=30))
-    screen("about")
-    scroll_to_top()
-
-    # ---------- 8. Share sheet entry ----------
-    sh("am start -a android.intent.action.SEND -t text/plain --es android.intent.extra.TEXT 'verify now http://bkash.com.account-verify.xyz/login' "
-       f"-n {PKG}/com.bankvault.ui.ShareReceiverActivity"); time.sleep(4)
-    t = screen("share sheet scan")
-    result("share scan flags lookalike", any("Suspicious" in x for x in t))
-    check_no_crash("share")
-
-    # ---------- 9. Reboot-like: kill + restart process ----------
+    # 9. Force-stop + restart
     sh(f"am force-stop {PKG}"); time.sleep(2)
     sh(f"am start -n {PKG}/com.bankvault.ui.MainActivity"); time.sleep(4)
-    result("restart after force-stop", check_no_crash("restart") and wait_text("Unlock the security dashboard", 8))
-    enter_pin(PIN, "Unlock"); time.sleep(3)
+    result("restart after force-stop", check_no_crash("restart") and wait_text("Enter your PIN", 8))
+    unlock_bankvault()
 
-    # ---------- 10. Monkey ----------
+    # 10. Monkey
     adb("logcat", "-c", "-b", "crash")
     mk = sh(f"monkey -p {PKG} --pct-syskeys 0 --throttle 150 -s 42 -v 1500", timeout=600)
     open(f"{OUT}/monkey.log", "w").write(mk)
@@ -347,18 +312,14 @@ def main():
     inj = re.findall(r"Events injected: (\d+)", mk)
     result("monkey 1500 events", check_no_crash("monkey") and not bad, f"injected={inj[-1] if inj else '?'} {' '.join(bad)[:200]}")
 
-    # ---------- summary ----------
-    adb("logcat", "-d", "-v", "time", "*:W")  # noqa
     open(f"{OUT}/logcat.txt", "w").write(adb("logcat", "-d", "-v", "time"))
-    open(f"{OUT}/crash.txt", "w").write(adb("logcat", "-d", "-b", "crash"))
     with open(f"{OUT}/summary.md", "w") as f:
         f.write("| Step | Result | Detail |\n|---|---|---|\n")
-        for s, ok, d in RESULTS:
-            f.write(f"| {s} | {'PASS' if ok else 'FAIL'} | {d.strip()[:300].replace('|', '/').replace(chr(10), ' ')} |\n")
+        for st, ok2, d in RESULTS:
+            f.write(f"| {st} | {'PASS' if ok2 else 'FAIL'} | {d.strip()[:300].replace('|', '/')} |\n")
     fails = [r for r in RESULTS if not r[1]]
     log(f"\nSUMMARY: {len(RESULTS) - len(fails)}/{len(RESULTS)} passed")
-    crash_fail = [r for r in fails if r[0].startswith("no crash") or r[0] in ("launch", "monkey 1500 events")]
-    sys.exit(1 if crash_fail else 0)
+    sys.exit(1 if fails else 0)
 
 
 if __name__ == "__main__":

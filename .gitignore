@@ -11,3 +11,6 @@ build/
 *.keystore
 keystore.properties
 signing/
+
+# Shared debug key so every CI build can update the previous one (not a release key).
+!app/debug.keystore
