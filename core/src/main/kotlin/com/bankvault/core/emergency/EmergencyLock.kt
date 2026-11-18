@@ -34,8 +34,12 @@ class EmergencyLock(
     private val audit: AuditSink,
     private val protectedPackages: () -> Set<String>,
 ) {
-    data class Step(val name: String, val ok: Boolean, val detail: String)
-    data class Result(val steps: List<Step>) { val fullySucceeded get() = steps.all { it.ok } }
+    /** skipped = the phone does not support this step (e.g. no Device Owner); that is not a failure. */
+    data class Step(val name: String, val ok: Boolean, val detail: String, val skipped: Boolean = false)
+    data class Result(val steps: List<Step>) {
+        val fullySucceeded get() = steps.all { it.ok || it.skipped }
+        val skipped get() = steps.filter { it.skipped }
+    }
 
     suspend fun trigger(source: String): Result {
         val steps = mutableListOf<Step>()
@@ -48,18 +52,17 @@ class EmergencyLock(
             val ok = st.all { it.state.name.startsWith("BLOCKED") }
             ok to st.joinToString { "${it.app.packageName}=${it.state}" }.ifEmpty { "no protected apps" }
         }
-        step("Suspend / hide protected apps") {
-            if (!access.canRestrict) false to "Not available without Device Owner/Profile Owner"
-            else {
-                val want = protectedPackages(); val done = access.restrict(want)
-                (done == want) to "${done.size}/${want.size} restricted"
-            }
+        if (!access.canRestrict) steps += Step("Suspend / hide protected apps", ok = false,
+            detail = "Not available without Device Owner/Profile Owner", skipped = true)
+        else step("Suspend / hide protected apps") {
+            val want = protectedPackages(); val done = access.restrict(want)
+            (done == want) to "${done.size}/${want.size} restricted"
         }
         step("Clear sensitive temporary state") { wiper.wipeTransientState(); true to "cleared" }
         step("Lock dashboard") { wiper.lockDashboard(); true to "locked" }
         val result = Result(steps)
         audit.record(AuditEvent(AuditType.EMERGENCY_LOCK, clock.nowMillis(), null,
-            "source=$source; " + steps.joinToString("; ") { "${it.name}:${if (it.ok) "ok" else "FAILED"}" }))
+            "source=$source; " + steps.joinToString("; ") { "${it.name}:${when { it.ok -> "ok"; it.skipped -> "skipped (not available on this phone)"; else -> "FAILED" }}" }))
         return result
     }
 }

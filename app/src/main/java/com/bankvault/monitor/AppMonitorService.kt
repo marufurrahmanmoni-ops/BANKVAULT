@@ -127,9 +127,12 @@ class BootReceiver : BroadcastReceiver() {
             try {
                 val event = if (intent.action == Intent.ACTION_BOOT_COMPLETED) "Device rebooted" else "BANKVAULT updated"
                 // Sessions are in memory only, so every app is locked after reboot/update.
-                app.graph.network.reconcileFromStore()
-                app.graph.managed.restrict(app.graph.protectedPackages())
-                app.graph.recordRecovery("$event: restrictions re-applied")
+                val pkgs = app.graph.protectedPackages()
+                if (pkgs.isNotEmpty()) {
+                    app.graph.network.reconcileFromStore()
+                    app.graph.managed.restrict(pkgs)
+                    app.graph.recordRecovery("$event: restrictions re-applied to ${pkgs.size} app(s)")
+                }
                 if (app.graph.pins.isSet()) AppMonitorService.startIfPossible(context)
             } finally { pending.finish() }
         }

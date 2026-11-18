@@ -157,7 +157,7 @@ fun HomeScreen(activity: FragmentActivity, graph: AppGraph, fixer: Fixer, onNavi
     val monitorIssues = buildList {
         if (check("notif")?.severity == TamperMonitor.Severity.WARNING) add(Issue("notif", IssueLevel.PROBLEM, "Notifications are blocked",
             "You won't be alerted if protection stops.", FixKind.NOTIFICATIONS, "Allow notifications"))
-        if (check("adb")?.severity == TamperMonitor.Severity.WARNING) add(Issue("adb", IssueLevel.PROBLEM, "USB debugging is on",
+        if (check("adb")?.severity == TamperMonitor.Severity.WARNING) add(Issue("adb", IssueLevel.RECOMMENDED, "USB debugging is on",
             "Anyone with a computer and cable can stop BANKVAULT. Turn it off unless you are developing.", FixKind.USB_DEBUGGING, "Turn off USB debugging"))
     }
 
@@ -207,7 +207,7 @@ fun HomeScreen(activity: FragmentActivity, graph: AppGraph, fixer: Fixer, onNavi
     }
     val monitorStatus = when {
         checks.isEmpty() -> ProtectionStatus.PENDING
-        monitorIssues.isNotEmpty() -> ProtectionStatus.DEGRADED
+        monitorIssues.any { it.level == IssueLevel.PROBLEM } -> ProtectionStatus.DEGRADED
         else -> ProtectionStatus.PROTECTED
     }
     val overall = ProtectionStatus.overall(listOf(appLockStatus, networkStatus, authStatus, monitorStatus))
@@ -241,7 +241,7 @@ fun HomeScreen(activity: FragmentActivity, graph: AppGraph, fixer: Fixer, onNavi
         }
 
         Button(
-            onClick = { triggerEmergency(ctx, "in_app_button") { ok -> emergencyMsg = if (ok) "Emergency lock applied." else "Emergency lock applied. Steps your phone doesn't support were skipped (see Activity)." } },
+            onClick = { triggerEmergency(ctx, "in_app_button") { ok -> emergencyMsg = if (ok) "Emergency lock applied." else "Emergency lock applied, but some steps failed – see Activity." } },
             colors = ButtonDefaults.buttonColors(containerColor = BvColors.Bad),
             modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
         ) { Icon(Icons.Filled.Lock, null); Spacer(Modifier.padding(4.dp)); Text("EMERGENCY LOCK") }
@@ -298,7 +298,7 @@ fun HomeScreen(activity: FragmentActivity, graph: AppGraph, fixer: Fixer, onNavi
             IssueList(authIssues, fixer)
         }
         SectionCard("Security monitoring", monitorStatus) {
-            if (monitorIssues.isEmpty()) Dim("Watching permissions, VPN and settings. You'll get an alert if anything weakens protection.")
+            if (monitorIssues.none { it.level == IssueLevel.PROBLEM }) Dim("Watching permissions, VPN and settings. You'll get an alert if anything weakens protection.")
             IssueList(monitorIssues, fixer)
             Button(onClick = { onNavigate(Tab.LOG) }) { Text("View activity") }
         }

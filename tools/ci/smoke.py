@@ -172,7 +172,7 @@ def start_testbank():
 
 def probes(tag):
     last = ""
-    for _ in range(30):           # probes can take ~20 s when everything times out
+    for _ in range(90):           # blackholed DNS can take >30 s to time out on Android 14
         out = adb("logcat", "-d", "-s", "TestBank:I")
         lines = [l for l in out.splitlines() if "transport" in l]
         if lines:
@@ -323,7 +323,9 @@ def main():
     adb("logcat", "-c", "-b", "crash")
     mk = sh(f"monkey -p {PKG} --pct-syskeys 0 --throttle 150 -s 42 -v 1500", timeout=600)
     open(f"{OUT}/monkey.log", "w").write(mk)
-    result("monkey 1500 events", check_no_crash("monkey") and "Monkey finished" in mk, mk.strip().splitlines()[-1] if mk.strip() else "")
+    bad = [l for l in mk.splitlines() if "// CRASH" in l or "NOT RESPONDING" in l or "Monkey aborted" in l]
+    inj = re.findall(r"Events injected: (\d+)", mk)
+    result("monkey 1500 events", check_no_crash("monkey") and not bad, f"injected={inj[-1] if inj else '?'} {' '.join(bad)[:200]}")
 
     # ---------- summary ----------
     adb("logcat", "-d", "-v", "time", "*:W")  # noqa

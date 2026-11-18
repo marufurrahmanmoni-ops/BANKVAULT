@@ -115,5 +115,9 @@ fun PinPad(
 
 fun formatDuration(ms: Long): String {
     val s = (ms / 1000).coerceAtLeast(0)
-    return if (s >= 60) "${s / 60} min ${s % 60} s" else "$s s"
+    return when {
+        s >= 60 && s % 60 == 0L -> "${s / 60} min"
+        s >= 60 -> "${s / 60} min ${s % 60} s"
+        else -> "$s s"
+    }
 }

@@ -77,8 +77,11 @@ class MiscTest {
         assertTrue(sm.activePackages().isEmpty())
         assertEquals(NetworkAccessState.BLOCKED_ALL, net.status().single().state)
         assertTrue(wiped && locked)
-        assertFalse("suspend step must be reported as not done on unmanaged device", r.fullySucceeded)
+        // Unmanaged phone: suspension is SKIPPED (honestly reported), not counted as a failure.
+        assertTrue(r.fullySucceeded)
+        assertEquals(listOf("Suspend / hide protected apps"), r.skipped.map { it.name })
+        assertFalse(r.steps.single { it.name.startsWith("Suspend") }.ok)
         assertEquals(AuditType.EMERGENCY_LOCK, sink.events.single().type)
-        assertTrue(sink.events.single().detail.contains("Suspend / hide protected apps:FAILED"))
+        assertTrue(sink.events.single().detail.contains("Suspend / hide protected apps:skipped (not available on this phone)"))
     }
 }
