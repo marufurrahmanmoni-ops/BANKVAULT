@@ -108,12 +108,23 @@ def tap(text, exact=False, timeout=12, scroll=True):
     return True
 
 
+SIZE = None
+
+
+def size():
+    global SIZE
+    if SIZE is None:
+        m = re.findall(r"(\d+)x(\d+)", sh("wm size"))
+        SIZE = tuple(map(int, m[-1])) if m else (1080, 2400)
+    return SIZE
+
+
 def swipe_up():
-    sh("input swipe 540 1600 540 600 300"); time.sleep(0.8)
+    w, h = size(); sh(f"input swipe {w//2} {int(h*0.75)} {w//2} {int(h*0.30)} 300"); time.sleep(0.8)
 
 
 def swipe_down():
-    sh("input swipe 540 600 540 1600 300"); time.sleep(0.8)
+    w, h = size(); sh(f"input swipe {w//2} {int(h*0.30)} {w//2} {int(h*0.75)} 300"); time.sleep(0.8)
 
 
 def scroll_to_top():
@@ -138,7 +149,11 @@ def crashes():
 def check_no_crash(step):
     blocks, _ = crashes()
     if blocks:
-        result(f"no crash after: {step}", False, "\n" + "\n".join(blocks)[-6000:])
+        txt = "\n".join(blocks)
+        # Keep the head of each trace (exception + app frames), drop framework noise.
+        keep = [l for l in txt.splitlines() if ("FATAL" in l or "Process:" in l or "Exception" in l or "Error" in l
+                or "Caused by" in l or "com.bankvault" in l)]
+        result(f"no crash after: {step}", False, "\n" + "\n".join(keep[:60]))
         adb("logcat", "-c", "-b", "crash")
         return False
     return True
@@ -159,7 +174,7 @@ def probes(tag):
 
 def back_to_bankvault():
     sh(f"am start -n {PKG}/com.bankvault.ui.MainActivity"); time.sleep(3)
-    if find("Unlock the security dashboard", timeout=4):
+    if find("Unlock the security dashboard", timeout=4) is not None:
         enter_pin(PIN, "Unlock"); time.sleep(4)
 
 
@@ -195,7 +210,7 @@ def main():
     tap("Apps", exact=True, scroll=False); time.sleep(2)
     tap("Add apps", scroll=False); time.sleep(3)
     screen("app picker")
-    if not find("com.bankvault.testbank", timeout=3):
+    if find("com.bankvault.testbank", timeout=3) is None:
         result("picker lists TestBank", False)
     else:
         result("picker lists TestBank", True)
@@ -209,7 +224,7 @@ def main():
     tap("Turn on network block"); time.sleep(8)
     scroll_to_top()
     t = screen("dashboard after enabling VPN")
-    result("network block enabled", check_no_crash("enable vpn") and any("Verified" in x for x in t) or wait_text("Verified", 15))
+    result("network block enabled", check_no_crash("enable vpn") and (any(x == "Blocked" for x in t) or wait_text("Verified", 10)))
     tap("Add tile", timeout=4); time.sleep(3)
     screen("add tile dialog"); sh("input keyevent KEYCODE_BACK"); time.sleep(1)
     tap("Set up (1 minute)", timeout=4); time.sleep(2)
@@ -227,8 +242,9 @@ def main():
     result("locked: IPv6 blocked", "IPv6: BLOCKED" in p or "IPv6: OK" not in p, p)
     result("locked: DNS blocked", "DNS: BLOCKED" in p, p)
     # Other apps still online
-    other = sh("ping -c 1 -W 3 1.1.1.1")
-    result("other apps keep internet", " 0% packet loss" in other or "1 received" in other, other.strip()[-80:])
+    # adb shell (uid 2000) is not a protected app, so it must still reach the internet.
+    other = sh("echo | toybox nc -w 5 1.1.1.1 443 >/dev/null 2>&1 && echo NET_OK || echo NET_FAIL")
+    result("other apps keep internet", "NET_OK" in other, other.strip())
 
     # Wrong PIN
     enter_pin("111222", "Unlock"); time.sleep(2)
