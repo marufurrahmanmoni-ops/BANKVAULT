@@ -78,7 +78,16 @@ object KeystoreManager {
         null // no strong biometric enrolled yet, or keystore error: caller falls back to PIN
     }
 
-    fun isBioKeyInvalidated(): Boolean = bioCipherForEncrypt() == null
+    /**
+     * True only if a biometric key EXISTS and was invalidated by a new enrolment.
+     * Never creates a key (key generation is slow and must not run during UI composition).
+     */
+    fun isBioKeyInvalidated(): Boolean {
+        val key = runCatching { ks.getKey(BIO_KEY, null) as? SecretKey }.getOrNull() ?: return false
+        return try {
+            Cipher.getInstance("AES/GCM/NoPadding").init(Cipher.ENCRYPT_MODE, key); false
+        } catch (_: android.security.keystore.KeyPermanentlyInvalidatedException) { true } catch (_: Exception) { false }
+    }
 
     fun resetBioKey() { ks.deleteEntry(BIO_KEY) }
 

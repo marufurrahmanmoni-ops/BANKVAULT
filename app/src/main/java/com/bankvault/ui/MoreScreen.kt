@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
@@ -263,7 +264,7 @@ private fun PermissionRow(title: String, granted: Boolean, why: String, open: ()
 
 @Composable
 private fun PolicyChips(current: AuthPolicy, onPick: (AuthPolicy) -> Unit) {
-    Row { AuthPolicy.entries.forEach { p ->
+    Row(Modifier.horizontalScroll(rememberScrollState())) { AuthPolicy.entries.forEach { p ->
         FilterChip(current == p, { onPick(p) }, { Text(when (p) { AuthPolicy.PIN_ONLY -> "PIN"; AuthPolicy.BIOMETRIC_ONLY -> "Biometric"; AuthPolicy.PIN_AND_BIOMETRIC -> "PIN + Bio" }) },
             Modifier.padding(end = 4.dp))
     } }

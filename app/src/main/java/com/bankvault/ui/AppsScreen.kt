@@ -1,6 +1,8 @@
 package com.bankvault.ui
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -76,19 +78,19 @@ fun AppsScreen(graph: AppGraph) {
                     Text("Hide from launcher while locked", Modifier.weight(1f)); Switch(a.hideWhenLocked, { save(a.copy(hideWhenLocked = it), "hide=$it") })
                 }
                 Text("Session length", style = MaterialTheme.typography.labelLarge)
-                Row { SessionConfig.PRESETS.forEach { p ->
+                Row(Modifier.horizontalScroll(rememberScrollState())) { SessionConfig.PRESETS.forEach { p ->
                     FilterChip(selected = a.sessionDurationMs == p, onClick = {
                         save(a.copy(sessionDurationMs = p, backgroundGraceMs = a.backgroundGraceMs.coerceAtMost(p)), "session=${p / 1000}s")
                     }, label = { Text(formatDuration(p)) }, modifier = Modifier.padding(end = 4.dp))
                 } }
                 CustomDuration(a) { ms -> save(a.copy(sessionDurationMs = ms, backgroundGraceMs = a.backgroundGraceMs.coerceAtMost(ms)), "session=${ms / 1000}s") }
                 Text("App-switch grace (e.g. to copy an OTP): ${formatDuration(a.backgroundGraceMs)}", style = MaterialTheme.typography.labelLarge)
-                Row { listOf(15_000L, 30_000L, 45_000L, 90_000L).filter { it <= a.sessionDurationMs }.forEach { g ->
+                Row(Modifier.horizontalScroll(rememberScrollState())) { listOf(15_000L, 30_000L, 45_000L, 90_000L).filter { it <= a.sessionDurationMs }.forEach { g ->
                     FilterChip(selected = a.backgroundGraceMs == g, onClick = { save(a.copy(backgroundGraceMs = g), "grace=${g / 1000}s") },
                         label = { Text(formatDuration(g)) }, modifier = Modifier.padding(end = 4.dp))
                 } }
                 Text("Authentication", style = MaterialTheme.typography.labelLarge)
-                Row { (listOf<AuthPolicy?>(null) + AuthPolicy.entries).forEach { p ->
+                Row(Modifier.horizontalScroll(rememberScrollState())) { (listOf<AuthPolicy?>(null) + AuthPolicy.entries).forEach { p ->
                     FilterChip(selected = a.authPolicy == p?.name, onClick = { save(a.copy(authPolicy = p?.name), "auth=${p ?: "global"}") },
                         label = { Text(when (p) { null -> "Global"; AuthPolicy.PIN_ONLY -> "PIN"; AuthPolicy.BIOMETRIC_ONLY -> "Biometric"; AuthPolicy.PIN_AND_BIOMETRIC -> "PIN+Bio" }) },
                         modifier = Modifier.padding(end = 4.dp))
