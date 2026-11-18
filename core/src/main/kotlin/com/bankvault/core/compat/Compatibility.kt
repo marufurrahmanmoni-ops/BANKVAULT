@@ -57,8 +57,8 @@ data class CompatEntry(val feature: Feature, val support: Support, val active: B
 object CapabilityResolver {
     fun matrix(d: DeviceProfile): List<CompatEntry> = listOf(
         CompatEntry(Feature.SEPARATE_PIN, Support.FULLY_SUPPORTED, true, "Argon2id hash peppered with a Keystore HMAC key."),
-        CompatEntry(Feature.BIOMETRIC, if (d.strongBiometricEnrolled) Support.FULLY_SUPPORTED else Support.UNSUPPORTED,
-            d.strongBiometricEnrolled, if (d.strongBiometricEnrolled) "BiometricPrompt, BIOMETRIC_STRONG, Keystore-bound." else "No Class 3 biometric enrolled – PIN is used."),
+        CompatEntry(Feature.BIOMETRIC, if (d.strongBiometricEnrolled) Support.FULLY_SUPPORTED else Support.MANUAL_SETUP_REQUIRED,
+            d.strongBiometricEnrolled, if (d.strongBiometricEnrolled) "BiometricPrompt, BIOMETRIC_STRONG, Keystore-bound." else "No strong fingerprint/face enrolled yet – PIN is used. Enrol one in Android Settings."),
         CompatEntry(Feature.APP_LAUNCH_DETECTION, Support.SUPPORTED_WITH_USER_PERMISSION, d.usageAccessGranted,
             "UsageStatsManager polling. Best-effort: an app may be visible for a fraction of a second before the lock screen covers it."),
         CompatEntry(Feature.APP_SUSPEND, Support.REQUIRES_DEVICE_OWNER, d.managed,
@@ -72,7 +72,7 @@ object CapabilityResolver {
             if (d.rootGranted) "iptables/ip6tables UID rules." else "Local blackhole VPN (no server, no inspection). Alternatively OEM Settings > Data usage > per-app network access (manual, unverifiable)."),
         CompatEntry(Feature.PER_APP_WIFI_ONLY, if (d.rootGranted) Support.REQUIRES_ROOT else Support.OPTIONAL_VPN_REQUIRED,
             d.rootGranted || d.vpnConsentGranted, if (d.rootGranted) "Interface-based rules (wlan+ / rmnet+ / ccmni+)." else "VPN re-plans on network change; a short transition window exists."),
-        CompatEntry(Feature.NETWORK_VERIFICATION, if (d.rootGranted || d.vpnConsentGranted) Support.FULLY_SUPPORTED else Support.UNSUPPORTED,
+        CompatEntry(Feature.NETWORK_VERIFICATION, if (d.rootGranted || d.vpnConsentGranted) Support.FULLY_SUPPORTED else Support.OPTIONAL_VPN_REQUIRED,
             d.rootGranted || d.vpnConsentGranted, "Root: reads live iptables. VPN: checks the tunnel is up with the right app list. OEM manual: not verifiable."),
         CompatEntry(Feature.PRIVATE_DNS_FILTERING, Support.MANUAL_SETUP_REQUIRED, false,
             "Third-party apps cannot set Private DNS (needs WRITE_SECURE_SETTINGS). BANKVAULT guides you and verifies via LinkProperties."),

@@ -124,6 +124,7 @@ class BankVaultVpnService : VpnService() {
         tun = newTun
         startDrain(newTun)
         old?.close() // close only after the new interface is up
+        VpnController.alwaysOn.value = isAlwaysOn
         VpnController.status.value = VpnController.Status.Running(plan.copy(blackholePackages = added.toSet()), transport, System.currentTimeMillis())
     }
 

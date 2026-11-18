@@ -58,6 +58,14 @@ class AppGraph(val context: Context) {
     /** True while the BANKVAULT dashboard is unlocked (in-memory only; cleared by emergency/screen-off). */
     val dashboardUnlocked = MutableStateFlow(false)
 
+    /**
+     * When the owner taps a "Fix" button that opens Android Settings, the dashboard stays unlocked
+     * for up to 2 minutes so they can come straight back. Screen-off still locks immediately.
+     */
+    @Volatile var returnGraceUntil = 0L
+    fun expectReturn() { returnGraceUntil = clock.elapsedMillis() + RETURN_GRACE_MS }
+    companion object { const val RETURN_GRACE_MS = 120_000L }
+
     init {
         managed.hideAsWell = { pkg -> db.apps().get(pkg)?.hideWhenLocked ?: true }
     }

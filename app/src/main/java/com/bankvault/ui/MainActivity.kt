@@ -28,6 +28,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.bankvault.AppGraph
 import com.bankvault.BankVaultApp
 import com.bankvault.lock.AuthPanel
 
@@ -50,10 +51,20 @@ class MainActivity : FragmentActivity() {
         setContent { BankVaultTheme { Root() } }
     }
 
+    private var stoppedAt = 0L
+
     override fun onStop() {
         super.onStop()
-        // Leaving the app locks the dashboard again.
-        if (!isChangingConfigurations) graph.dashboardUnlocked.value = false
+        if (isChangingConfigurations) return
+        // Leaving the app locks the dashboard – unless the owner just tapped a Fix button that opens Settings.
+        if (graph.clock.elapsedMillis() < graph.returnGraceUntil) stoppedAt = graph.clock.elapsedMillis()
+        else graph.dashboardUnlocked.value = false
+    }
+
+    override fun onStart() {
+        super.onStart()
+        if (stoppedAt > 0 && graph.clock.elapsedMillis() - stoppedAt > AppGraph.RETURN_GRACE_MS) graph.dashboardUnlocked.value = false
+        stoppedAt = 0; graph.returnGraceUntil = 0
     }
 
     @Composable
@@ -93,15 +104,15 @@ class MainActivity : FragmentActivity() {
                 }
             },
         ) { pad ->
-            Box(Modifier.padding(pad)) {
+            Box(Modifier.padding(pad)) { FixHost(this@MainActivity, graph, onNavigate = { tab = it }) { fixer ->
                 when (tab) {
-                    Tab.HOME -> HomeScreen(graph, onNavigate = { tab = it })
+                    Tab.HOME -> HomeScreen(this@MainActivity, graph, fixer, onNavigate = { tab = it })
                     Tab.APPS -> AppsScreen(graph)
                     Tab.SCAN -> ScanScreen(graph, initialText = null)
                     Tab.LOG -> ActivityScreen(this@MainActivity, graph)
-                    Tab.MORE -> MoreScreen(this@MainActivity, graph)
+                    Tab.MORE -> MoreScreen(this@MainActivity, graph, fixer)
                 }
-            }
+            } }
         }
     }
 }

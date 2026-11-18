@@ -18,6 +18,8 @@ object VpnController {
 
     /** Current default transport as seen by the VPN service (null = unknown/switching). */
     @Volatile var transport: Transport? = null
+    /** Reported by the running service via VpnService.isAlwaysOn(). */
+    val alwaysOn = MutableStateFlow(false)
     @Volatile var desired: Map<AppRef, DesiredAccess> = emptyMap()
     val status = MutableStateFlow<Status>(Status.Stopped)
     /** Count of dropped packets from blocked apps (count only – contents are never read). */

@@ -54,12 +54,18 @@ import com.bankvault.vpn.VpnController
 import kotlinx.coroutines.launch
 
 @Composable
-fun MoreScreen(activity: FragmentActivity, graph: AppGraph) {
+fun MoreScreen(activity: FragmentActivity, graph: AppGraph, fixer: Fixer) {
     val scope = rememberCoroutineScope()
     val settings by graph.settings.state.collectAsStateWithLifecycle()
     var pendingAction by remember { mutableStateOf<Pair<String, () -> Unit>?>(null) }
     var note by remember { mutableStateOf<String?>(null) }
     fun guarded(what: String, block: () -> Unit) { pendingAction = what to block }
+    var resumeTick by remember { mutableStateOf(0) }
+    val lifecycle = androidx.lifecycle.compose.LocalLifecycleOwner.current.lifecycle
+    androidx.compose.runtime.DisposableEffect(lifecycle) {
+        val obs = androidx.lifecycle.LifecycleEventObserver { _, e -> if (e == androidx.lifecycle.Lifecycle.Event.ON_RESUME) resumeTick++ }
+        lifecycle.addObserver(obs); onDispose { lifecycle.removeObserver(obs) }
+    }
     fun audit(detail: String) = scope.launch { graph.audit.record(AuditEvent(AuditType.SETTINGS_CHANGED, graph.clock.nowMillis(), null, detail)) }
 
     val vpnConsent = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) {
@@ -84,17 +90,19 @@ fun MoreScreen(activity: FragmentActivity, graph: AppGraph) {
 
         // ---------------- Permissions ----------------
         SectionCard("Permissions") {
+            androidx.compose.runtime.key(resumeTick) {
             PermissionRow("Usage access", graph.tamper.hasUsageAccess(),
                 "Lets BANKVAULT see which app is in front, so it can show its lock screen over a protected app. Nothing else is read.") {
-                activity.startActivity(Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS))
+                fixer.run(FixKind.USAGE_ACCESS)
             }
             PermissionRow("Display over other apps", graph.tamper.canDrawOverlays(),
                 "Android only allows the lock screen to come to the front from the background with this permission.") {
-                activity.startActivity(Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:${activity.packageName}")))
+                fixer.run(FixKind.OVERLAY)
             }
             PermissionRow("Notifications", graph.tamper.notificationsAllowed(),
                 "Needed for the always-on status notification and protection alerts. Banking app names are hidden on the lock screen.") {
-                activity.startActivity(Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).putExtra(Settings.EXTRA_APP_PACKAGE, activity.packageName))
+                fixer.run(FixKind.NOTIFICATIONS)
+            }
             }
         }
 
@@ -107,8 +115,7 @@ fun MoreScreen(activity: FragmentActivity, graph: AppGraph) {
                         guarded("Change network isolation to ${m.title}") {
                             scope.launch {
                                 when (m) {
-                                    NetworkMode.LOCAL_VPN -> VpnService.prepare(activity)?.let { vpnConsent.launch(it) }
-                                        ?: run { graph.network.switchMode(m); audit("network mode=$m") }
+                                    NetworkMode.LOCAL_VPN -> { fixer.run(FixKind.ENABLE_VPN); audit("network mode=$m") }
                                     NetworkMode.ROOT_FIREWALL -> if (RootShell.isRootGranted(forceCheck = true)) { graph.network.switchMode(m); audit("network mode=$m") }
                                         else note = "Root access was not granted. Root mode requires an authorised root manager (e.g. Magisk) on a device you own."
                                     else -> { graph.network.switchMode(m); audit("network mode=$m") }
@@ -132,7 +139,7 @@ fun MoreScreen(activity: FragmentActivity, graph: AppGraph) {
             Dim(if (dns.active) "Private DNS active: ${dns.serverName}" else "Private DNS is not set to a hostname.")
             Dim("Android does not let apps change Private DNS. Open Settings > Network & internet > Private DNS (Realme/ColorOS: Settings > Connection & sharing > Private DNS) and enter one of these hostnames:")
             PrivateDnsInspector.PROVIDERS.forEach { p -> Dim("• ${p.hostname} – ${p.name}: ${p.blocks}") }
-            OutlinedButton(onClick = { activity.startActivity(PrivateDnsInspector.settingsIntent()) }) { Text("Open network settings") }
+            OutlinedButton(onClick = { fixer.run(FixKind.PRIVATE_DNS) }) { Text("Set up Private DNS") }
             Dim("DNS-over-HTTPS is available only inside browsers that support it (e.g. Chrome: Settings > Privacy > Use secure DNS).")
         }
 
@@ -159,6 +166,7 @@ fun MoreScreen(activity: FragmentActivity, graph: AppGraph) {
                     Text("Hide BANKVAULT icon")
                     Dim(if (settings.tileAdded) "Re-open via: long-press the 'Emergency Lock' Quick Settings tile, or share any link to BANKVAULT."
                         else "Add the 'Emergency Lock' tile to Quick Settings first – it is your way back in.")
+                    if (!settings.tileAdded) OutlinedButton(onClick = { fixer.run(FixKind.ADD_TILE) }) { Text("Add tile") }
                 }
                 Switch(graph.stealth.isLauncherHidden(), { v ->
                     guarded(if (v) "Hide BANKVAULT icon" else "Show BANKVAULT icon") {
@@ -195,7 +203,7 @@ fun MoreScreen(activity: FragmentActivity, graph: AppGraph) {
         }
 
         // ---------------- Compatibility ----------------
-        CompatibilitySection(graph)
+        CompatibilitySection(activity, graph, fixer)
 
         // ---------------- Recovery ----------------
         RecoverySection(activity, graph)
@@ -299,25 +307,60 @@ private fun ChangePin(graph: AppGraph, title: String, kind: PinRepository.Kind) 
     }
 }
 
+/** Fix for a feature that is supported but not active yet; null = nothing the owner can do on this phone. */
+private fun fixFor(f: com.bankvault.core.compat.Feature, realme: Boolean): Pair<FixKind, String>? = when (f) {
+    com.bankvault.core.compat.Feature.BIOMETRIC -> FixKind.BIOMETRIC_ENROLL to "Enrol fingerprint"
+    com.bankvault.core.compat.Feature.APP_LAUNCH_DETECTION -> FixKind.USAGE_ACCESS to "Turn on usage access"
+    com.bankvault.core.compat.Feature.APP_SUSPEND, com.bankvault.core.compat.Feature.UNINSTALL_PROTECTION -> FixKind.DEVICE_OWNER_GUIDE to "How to set up (advanced)"
+    com.bankvault.core.compat.Feature.APP_HIDE_LAUNCHER -> if (realme) FixKind.HIDE_APPS_GUIDE to "Use phone's Hide apps" else FixKind.DEVICE_OWNER_GUIDE to "How to set up (advanced)"
+    com.bankvault.core.compat.Feature.PER_APP_NETWORK_BLOCK, com.bankvault.core.compat.Feature.PER_APP_WIFI_ONLY,
+    com.bankvault.core.compat.Feature.NETWORK_VERIFICATION -> FixKind.ENABLE_VPN to "Turn on network block"
+    com.bankvault.core.compat.Feature.PRIVATE_DNS_FILTERING -> FixKind.PRIVATE_DNS to "Set up Private DNS"
+    com.bankvault.core.compat.Feature.EMERGENCY_TILE -> FixKind.ADD_TILE to "Add tile"
+    else -> null
+}
+
 @Composable
-private fun CompatibilitySection(graph: AppGraph) {
+private fun CompatibilitySection(activity: FragmentActivity, graph: AppGraph, fixer: Fixer) {
     val scope = rememberCoroutineScope()
+    val settings by graph.settings.state.collectAsStateWithLifecycle()
     var rows by remember { mutableStateOf<List<CompatEntry>>(emptyList()) }
     var header by remember { mutableStateOf("") }
+    var realme by remember { mutableStateOf(false) }
     fun load(root: Boolean) = scope.launch {
         val (p, m) = graph.profiler.matrix(root)
+        realme = p.isRealmeOrOppo
         header = "${p.manufacturer} ${p.model} · API ${p.sdkInt} · patch ${p.securityPatch} · ROM ${p.oemVersion ?: "?"} · " +
             "Device Owner: ${p.isDeviceOwner} · Profile Owner: ${p.isProfileOwner} · Root: ${if (root) p.rootGranted else "not checked"}"
-        rows = m
+        val dnsOk = PrivateDnsInspector.status(activity).let { it.active && it.knownFilteringProvider != null }
+        rows = m.map { e -> when (e.feature) {
+            com.bankvault.core.compat.Feature.PRIVATE_DNS_FILTERING -> e.copy(active = dnsOk)
+            com.bankvault.core.compat.Feature.EMERGENCY_TILE -> e.copy(active = graph.settings.state.value.tileAdded)
+            else -> e
+        } }
     }
-    androidx.compose.runtime.LaunchedEffect(Unit) { load(false) }
+    // Reload whenever settings change (e.g. a Fix button turned something on) and when returning to the screen.
+    androidx.compose.runtime.LaunchedEffect(settings) { load(false) }
+    val lifecycle = androidx.lifecycle.compose.LocalLifecycleOwner.current.lifecycle
+    androidx.compose.runtime.DisposableEffect(lifecycle) {
+        val obs = androidx.lifecycle.LifecycleEventObserver { _, e -> if (e == androidx.lifecycle.Lifecycle.Event.ON_RESUME) load(false) }
+        lifecycle.addObserver(obs); onDispose { lifecycle.removeObserver(obs) }
+    }
     SectionCard("Compatibility matrix") {
         Dim(header)
+        Dim("Green = working now. Amber = can be turned on – tap the button. Grey \"Not possible\" = Android does not allow it on this phone; nothing is broken.")
         rows.forEach { r ->
-            Column(Modifier.padding(vertical = 4.dp)) {
-                Row { Text(r.feature.title, Modifier.weight(1f)); Text(if (r.active) "Active" else "Not active", color = if (r.active) BvColors.Good else BvColors.Warning) }
-                Text(r.support.label, color = if (r.support == Support.UNSUPPORTED) BvColors.Bad else BvColors.Neutral, style = MaterialTheme.typography.labelMedium)
+            val fix = if (!r.active && r.support != Support.UNSUPPORTED) fixFor(r.feature, realme) else null
+            val possible = r.active || fix != null
+            Column(Modifier.padding(vertical = 6.dp)) {
+                Row {
+                    Text(r.feature.title, Modifier.weight(1f))
+                    Text(when { r.active -> "Active"; possible -> "Not active"; else -> "Not possible" },
+                        color = when { r.active -> BvColors.Good; possible -> BvColors.Warning; else -> BvColors.TextDim })
+                }
+                Text(r.support.label, color = if (r.support == Support.UNSUPPORTED) BvColors.TextDim else BvColors.Neutral, style = MaterialTheme.typography.labelMedium)
                 Dim(r.note)
+                if (fix != null) OutlinedButton(onClick = { fixer.run(fix.first) }) { Text(fix.second) }
             }
         }
         TextButton(onClick = { load(true) }) { Text("Check root access (shows root prompt)") }
@@ -361,7 +404,7 @@ private fun RecoverySection(activity: FragmentActivity, graph: AppGraph) {
                 graph.managed.relinquish(graph.protectedPackages()); graph.recordRecovery("Device/Profile Owner relinquished")
                 msg = "Owner status removed. BANKVAULT can now be uninstalled normally."
             } }) { Text("Remove Device Owner status") }
-            TextButton(onClick = { activity.startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:${activity.packageName}"))) }) { Text("Open BANKVAULT in Android Settings") }
+            TextButton(onClick = { graph.expectReturn(); activity.startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:${activity.packageName}"))) }) { Text("Open BANKVAULT in Android Settings") }
         }
     }
 }
