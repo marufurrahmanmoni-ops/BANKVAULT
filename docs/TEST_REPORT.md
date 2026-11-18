@@ -11,11 +11,35 @@
 | `:core` tests under real Gradle + JUnit 4 (GitHub Actions) | **PASS** (`.github/workflows/android.yml`, run 44369865777) |
 | `:app` and `:testbank` Android modules | **COMPILED** on GitHub Actions (AGP 8.10.1, Kotlin 2.1.20, compileSdk 36) – 1 deprecation warning, 0 errors |
 | Debug APKs | **BUILT** – downloadable as workflow artifacts `bankvault-debug-apk`, `testbank-debug-apk` |
-| APK install, start-up on a device | **NOT RUN** |
+| Emulator end-to-end smoke test (Android 14 & 15, `tools/ci/smoke.py`) | **20/20 PASS on both** – run 44403555031 |
+| Real Realme phone | **NOT RUN by CI** – owner testing |
 | On-device acceptance tests 1–15 | **NOT RUN** – need a physical phone. Procedures below |
 
 No result in this file is marked PASS unless it was actually executed. The 15 acceptance tests are therefore **NOT RUN**,
 with the unit tests that already prove the underlying logic listed next to each.
+
+## Emulator end-to-end results (executed in CI, every push)
+
+Google API emulators, API 34 and API 35, BANKVAULT + TestBank installed, permissions granted via adb (as the Fix buttons would).
+
+| Step | API 34 | API 35 |
+|---|---|---|
+| Launch, onboarding (PIN + recovery PIN) | PASS | PASS |
+| App picker lists TestBank; protect it | PASS | PASS |
+| "Turn on network block" Fix button → VPN verified, dashboard *Blocked* | PASS | PASS |
+| Opening TestBank while locked shows BANKVAULT lock screen | PASS | PASS |
+| Locked: IPv4, IPv6, DNS, HTTPS all refused (fail fast, `ConnectException`) | PASS | PASS |
+| Other apps keep internet | PASS | PASS |
+| Wrong PIN rejected; correct PIN opens TestBank with internet | PASS | PASS |
+| Emergency Lock → lock screen + network blocked again | PASS | PASS |
+| Scanner: test phishing domain = Confirmed malicious; share-sheet look-alike = Suspicious | PASS | PASS |
+| About shows developer | PASS | PASS |
+| Force-stop + restart; 1 500 random monkey events | PASS, no crash | PASS, no crash |
+
+Bugs found by this test and fixed: TestBank missing permission (crash); intermittent Keystore "busy" error crashing a UI action
+(now serialised + retried, UI actions crash-safe, crash reports shown on the dashboard); blocked apps hanging on DNS timeouts and
+staying offline briefly after unlock on Android 14 (VPN now answers TCP SYN with RST and DNS with REFUSED); emergency lock reporting
+"FAILED" for steps the phone simply doesn't support.
 
 ## Unit tests (executed)
 
@@ -25,6 +49,7 @@ with the unit tests that already prove the underlying logic listed next to each.
 | Sessions | 7 | Locked by default; expiry; OTP-copy grace; inactivity end; screen-off/emergency/reboot end; wall-clock change cannot extend; config limits |
 | Network | 11 | Requested ≠ applied; Wi-Fi/Mobile states independent; lock-unlock-relock; backend failure/unverified/manual/tampered reporting; VPN never established with empty app list; IPv4+IPv6+DNS routes; per-transport + fail-closed; iptables touches only own chain, v4+v6; refuses system UIDs and unsafe paths; verification from live rules (missing IPv6 ⇒ not blocked); rollback |
 | Threat | 12 | Official domains safe; threat-DB hits incl. subdomains; look-alikes (Cyrillic, punycode, wrong TLD, digit swap, transposition, userinfo+IP); brand in unrelated domain; unfamiliar ⇒ UNKNOWN (incl. "nagar", "rocketchat"); shortener not safe; query/fragment stripped; URL extracted from SMS text; user lists; garbage input; signed feed accept; tamper/replay/expiry/unknown-key reject |
+| Packet responder | 4 | IPv4/IPv6 TCP SYN → valid RST (checksums verified), DNS → REFUSED with same id, everything else silently dropped, no reply to RST |
 | Misc | 4 | Audit redaction of OTP/PIN/account/token/email/URL query; green only for verified; compatibility matrix honesty; emergency lock reports failed steps |
 
 ## Acceptance tests (spec §23)
