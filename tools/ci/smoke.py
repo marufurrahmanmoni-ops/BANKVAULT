@@ -282,7 +282,8 @@ def main():
 
     # ---------- 5. Emergency lock -> blocked again ----------
     back_to_bankvault()
-    tap("EMERGENCY LOCK", scroll=False); time.sleep(6)
+    tap("Security", exact=True, scroll=False); scroll_to_top()
+    result("emergency button found", tap("EMERGENCY LOCK", scroll=False)); time.sleep(6)
     screen("after emergency lock")
     sh("input keyevent KEYCODE_HOME"); time.sleep(1)
     start_testbank(); time.sleep(4)
