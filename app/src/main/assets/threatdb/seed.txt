@@ -1,0 +1,27 @@
+BANKVAULT-THREATDB 1
+# Bundled seed database. It is protected by the APK signature.
+#
+# IMPORTANT: this seed intentionally contains only TEST domains under reserved TLDs
+# (.test / .example, RFC 2606) so that acceptance tests are reproducible and no real site is
+# accused without a verified source. Real threat data must come from a licensed feed
+# (see docs/CYBER_THREAT_PROTECTION.md) delivered through the signed update channel.
+version 1
+issued 1763424000000
+expires 4102444800000
+phishing bankvault-phishing-test.example
+phishing bkash-reward-claim.example
+phishing nagad-kyc-update.test
+scam fake-investment-test.example
+malware bankvault-malware-test.example
+malicious_download apk-dropper-test.example
+command_and_control c2-test.example
+ransomware ransom-test.example
+botnet botnet-test.example
+spyware spyware-test.example
+tracker tracker-test.example
+advertising ads-test.example
+# Official domains (also in core BrandRegistry). Re-verify before release.
+allow bkash.com
+allow nagad.com.bd
+allow dutchbanglabank.com
+allow bb.org.bd

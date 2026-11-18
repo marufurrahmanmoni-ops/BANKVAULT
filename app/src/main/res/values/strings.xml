@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">BANKVAULT</string>
+    <string name="share_label">Scan link with BANKVAULT</string>
+    <string name="tile_label">Emergency Lock</string>
+    <string name="widget_label">BANKVAULT Emergency Lock</string>
+    <string name="device_admin_desc">Lets BANKVAULT suspend and hide your selected banking apps and block its own uninstall. Only active if you provision BANKVAULT as Device Owner or Profile Owner.</string>
+    <string name="monitor_channel">Protection status</string>
+    <string name="alert_channel">Security alerts</string>
+</resources>

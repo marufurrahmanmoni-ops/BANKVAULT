@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="bv_background">#FF0B1220</color>
+    <color name="bv_accent">#FF3FB68B</color>
+    <color name="bv_widget">#FFB3261E</color>
+</resources>
