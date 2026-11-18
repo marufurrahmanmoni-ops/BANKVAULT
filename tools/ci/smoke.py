@@ -95,10 +95,10 @@ def tap_node(n):
     time.sleep(1.2)
 
 
-def tap(text, exact=False, timeout=12, scroll=True):
+def tap(text, exact=False, timeout=12, scroll=True, max_swipes=8):
     n = find(text, exact, timeout=timeout if not scroll else 4)
     tries = 0
-    while n is None and scroll and tries < 8:
+    while n is None and scroll and tries < max_swipes:
         swipe_up(); tries += 1
         n = find(text, exact, timeout=2)
     if n is None:
@@ -308,7 +308,7 @@ def main():
 
     # ---------- 7b. About ----------
     tap("More", exact=True, scroll=False); time.sleep(2)
-    result("About shows developer name", find("Md. Marufur Rahman Moni", timeout=3) is not None or tap("Md. Marufur Rahman Moni"))
+    result("About shows developer name", tap("Md. Marufur Rahman Moni", max_swipes=30))
     screen("about")
     scroll_to_top()
 
