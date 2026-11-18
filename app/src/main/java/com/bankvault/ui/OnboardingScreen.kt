@@ -35,6 +35,14 @@ fun OnboardingScreen(activity: FragmentActivity, graph: AppGraph, onDone: () -> 
     var first by remember { mutableStateOf<CharArray?>(null) }
     var error by remember { mutableStateOf<String?>(null) }
     val scope = rememberSafeScope()
+    // Ask for notifications at the end of setup (Android 13+ requires a runtime prompt).
+    val notifPermission = androidx.activity.compose.rememberLauncherForActivityResult(
+        androidx.activity.result.contract.ActivityResultContracts.RequestPermission()) { onDone() }
+    fun finish() {
+        val granted = androidx.core.content.ContextCompat.checkSelfPermission(activity, android.Manifest.permission.POST_NOTIFICATIONS) ==
+            android.content.pm.PackageManager.PERMISSION_GRANTED
+        if (granted) onDone() else try { notifPermission.launch(android.Manifest.permission.POST_NOTIFICATIONS) } catch (_: Exception) { onDone() }
+    }
 
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp)) {
         Text("BANKVAULT", style = MaterialTheme.typography.headlineMedium)
@@ -79,9 +87,9 @@ fun OnboardingScreen(activity: FragmentActivity, graph: AppGraph, onDone: () -> 
             }
             else -> {
                 Text("PINs saved.", style = MaterialTheme.typography.titleMedium)
-                Dim("Next: choose your banking apps and grant the permissions BANKVAULT needs. Each permission is explained before Android asks for it.")
+                Dim("Next: choose your banking apps and grant the permissions BANKVAULT needs. Android will now ask to allow notifications – they are used only for protection alerts.")
                 Spacer(Modifier.height(16.dp))
-                Button(onClick = onDone) { Text("Open dashboard") }
+                Button(onClick = { finish() }) { Text("Open dashboard") }
             }
         }
     }

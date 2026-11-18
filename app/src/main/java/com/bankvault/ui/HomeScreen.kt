@@ -213,24 +213,7 @@ fun HomeScreen(activity: FragmentActivity, graph: AppGraph, fixer: Fixer, onNavi
     val overall = ProtectionStatus.overall(listOf(appLockStatus, networkStatus, authStatus, monitorStatus))
     val allProblems = (appIssues + appLockReasonIfDegraded + networkIssues + authIssues + monitorIssues).filter { it.level == IssueLevel.PROBLEM }.distinctBy { it.fix to it.title }
 
-    var crashReport by remember { mutableStateOf(com.bankvault.CrashReporter.read(ctx)) }
-
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp)) {
-        crashReport?.let { report ->
-            SectionCard("Problem report available", ProtectionStatus.DEGRADED) {
-                Dim(report.lineSequence().take(2).joinToString(" · "))
-                Dim("BANKVAULT recorded an error. Please share this report with the developer – it contains no PINs, OTPs or banking data.")
-                Row {
-                    Button(onClick = {
-                        graph.expectReturn()
-                        ctx.startActivity(android.content.Intent.createChooser(android.content.Intent(android.content.Intent.ACTION_SEND)
-                            .setType("text/plain").putExtra(android.content.Intent.EXTRA_SUBJECT, "BANKVAULT problem report")
-                            .putExtra(android.content.Intent.EXTRA_TEXT, report), "Share report"))
-                    }) { Text("Share report") }
-                    androidx.compose.material3.TextButton(onClick = { com.bankvault.CrashReporter.clear(ctx); crashReport = null }) { Text("Dismiss") }
-                }
-            }
-        }
         SectionCard("Overall security", overall) {
             Dim(graph.tamper.deviceModelLine())
             if (allProblems.isEmpty()) Dim("All required protections are on and verified. Optional extras are suggested below. BANKVAULT never claims 100% protection.")

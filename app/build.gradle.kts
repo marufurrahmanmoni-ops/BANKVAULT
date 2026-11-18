@@ -95,6 +95,7 @@ dependencies {
     ksp(libs.androidx.room.compiler)
     implementation(libs.androidx.work)
     implementation(libs.androidx.biometric)
+    implementation(libs.androidx.fragment)
     implementation(libs.kotlinx.coroutines.android)
     implementation(libs.bouncycastle)
     implementation(libs.play.code.scanner)

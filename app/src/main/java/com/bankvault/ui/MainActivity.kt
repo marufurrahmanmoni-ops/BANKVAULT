@@ -21,6 +21,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -73,6 +74,23 @@ class MainActivity : FragmentActivity() {
         var recovering by rememberSaveable { mutableStateOf(false) }
         val unlocked by graph.dashboardUnlocked.collectAsStateWithLifecycle()
         val settings by graph.settings.state.collectAsStateWithLifecycle()
+        var crashReport by remember { mutableStateOf(com.bankvault.CrashReporter.read(this@MainActivity)) }
+        crashReport?.let { report ->
+            // Shown before anything else (even the unlock screen) so a report can always be shared.
+            androidx.compose.material3.AlertDialog(
+                onDismissRequest = {},
+                title = { Text("BANKVAULT had a problem") },
+                text = { Text(report.lineSequence().take(4).joinToString("\n") + "\n\nPlease share this report. It contains no PINs, OTPs or banking data.") },
+                confirmButton = { androidx.compose.material3.Button(onClick = {
+                    graph.expectReturn()
+                    startActivity(android.content.Intent.createChooser(android.content.Intent(android.content.Intent.ACTION_SEND)
+                        .setType("text/plain").putExtra(android.content.Intent.EXTRA_SUBJECT, "BANKVAULT problem report")
+                        .putExtra(android.content.Intent.EXTRA_TEXT, report), "Share report"))
+                    com.bankvault.CrashReporter.clear(this@MainActivity); crashReport = null
+                }) { Text("Share report") } },
+                dismissButton = { androidx.compose.material3.TextButton(onClick = { com.bankvault.CrashReporter.clear(this@MainActivity); crashReport = null }) { Text("Dismiss") } },
+            )
+        }
         when {
             !pinSet -> OnboardingScreen(this@MainActivity, graph) {
                 pinSet = true; graph.dashboardUnlocked.value = true

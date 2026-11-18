@@ -104,13 +104,25 @@ fun FixHost(activity: FragmentActivity, graph: AppGraph, onNavigate: (Tab) -> Un
         when (kind) {
             FixKind.USAGE_ACCESS -> open(Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS, pkgUri), Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS))
             FixKind.OVERLAY -> open(Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, pkgUri))
-            FixKind.NOTIFICATIONS ->
+            FixKind.NOTIFICATIONS -> {
+                val settingsIntent = Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).putExtra(Settings.EXTRA_APP_PACKAGE, activity.packageName)
                 if (ContextCompat.checkSelfPermission(activity, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED)
-                    notifLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
-                else open(Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).putExtra(Settings.EXTRA_APP_PACKAGE, activity.packageName))
+                    try { notifLauncher.launch(Manifest.permission.POST_NOTIFICATIONS) } catch (e: Exception) {
+                        com.bankvault.CrashReporter.recordHandled(activity, "notification permission request", e); open(settingsIntent)
+                    }
+                else open(settingsIntent)
+            }
             FixKind.ENABLE_VPN -> {
                 val consent = VpnService.prepare(activity)
-                if (consent != null) { graph.expectReturn(); vpnLauncher.launch(consent) }
+                if (consent != null) {
+                    graph.expectReturn()
+                    try { vpnLauncher.launch(consent) } catch (e: Exception) {
+                        // Never crash on a launcher problem: fall back to a plain activity start.
+                        com.bankvault.CrashReporter.recordHandled(activity, "VPN consent", e)
+                        runCatching { activity.startActivity(consent) }
+                        toast("Approve the VPN request, then tap the button again.")
+                    }
+                }
                 else scope.launch { graph.network.switchMode(NetworkMode.LOCAL_VPN); toast("Network isolation turned on") }
             }
             FixKind.VPN_SETTINGS -> open(Intent(Settings.ACTION_VPN_SETTINGS))

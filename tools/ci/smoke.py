@@ -190,14 +190,14 @@ def back_to_bankvault():
 
 def main():
     app_apk, tb_apk = sys.argv[1], sys.argv[2]
-    adb("install", "-r", "-g", app_apk, timeout=240)
+    adb("install", "-r", app_apk, timeout=240)          # no -g: runtime permissions go through the real dialogs
     adb("install", "-r", "-g", tb_apk, timeout=240)
     adb("logcat", "-c"); adb("logcat", "-c", "-b", "crash")
     # Permissions the owner would grant through the Fix buttons.
-    sh(f"pm grant {PKG} android.permission.POST_NOTIFICATIONS")
+    # Special-access settings have no dialog an app can show; grant them like the owner does in Settings.
+    # Notifications and VPN consent are NOT pre-granted: the real system dialogs are exercised below.
     sh(f"appops set {PKG} GET_USAGE_STATS allow")
     sh(f"appops set {PKG} SYSTEM_ALERT_WINDOW allow")
-    sh(f"appops set {PKG} ACTIVATE_VPN allow")
     sh("settings put global development_settings_enabled 0")
 
     # ---------- 1. First launch + onboarding ----------
@@ -212,9 +212,20 @@ def main():
     ok &= enter_pin(RPIN, "Next"); time.sleep(4)
     screen("after recovery PIN")
     ok &= tap("Open dashboard", timeout=30)
-    time.sleep(4)
+    time.sleep(3)
+    screen("notification permission dialog")
+    # Deny here, so the dashboard "Allow notifications" Fix button (the crash reported on Realme) is tested next.
+    denied = tap("Don", scroll=False, timeout=8)
+    result("onboarding asks for notifications", denied)
+    time.sleep(3)
     result("onboarding", ok and check_no_crash("onboarding") and wait_text("Overall security"))
     screen("dashboard (before setup)")
+    tap("Allow notifications", timeout=6); time.sleep(3)
+    screen("notification dialog from Fix button")
+    tap("Allow", exact=True, scroll=False, timeout=8); time.sleep(3)
+    granted = "granted" in sh(f"dumpsys package {PKG} | grep POST_NOTIFICATIONS")
+    result("Fix button: Allow notifications works", check_no_crash("allow notifications") and granted)
+    scroll_to_top()
 
     # ---------- 2. Add TestBank as protected app ----------
     tap("Apps", exact=True, scroll=False); time.sleep(2)
@@ -231,7 +242,9 @@ def main():
     # ---------- 3. Dashboard fixes: network block ----------
     tap("Security", exact=True, scroll=False); time.sleep(3)
     screen("dashboard after adding app")
-    tap("Turn on network block"); time.sleep(8)
+    tap("Turn on network block"); time.sleep(3)
+    screen("VPN consent dialog")
+    tap("OK", exact=True, scroll=False, timeout=8); time.sleep(8)
     scroll_to_top()
     t = screen("dashboard after enabling VPN")
     result("network block enabled", check_no_crash("enable vpn") and (any(x == "Blocked" for x in t) or wait_text("Verified", 10)))

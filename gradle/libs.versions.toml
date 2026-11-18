@@ -11,6 +11,9 @@ lifecycle = "2.9.0"
 room = "2.7.1"
 work = "2.10.1"
 biometric = "1.1.0"
+# biometric 1.1.0 pulls in fragment 1.2.x, whose FragmentActivity rejects the large request codes used by
+# the Activity Result API ("Can only use lower 16 bits for requestCode"). Force a modern fragment.
+fragment = "1.8.6"
 coroutines = "1.10.2"
 bouncycastle = "1.80"
 codeScanner = "16.1.0"
@@ -35,6 +38,7 @@ androidx-room-runtime = { module = "androidx.room:room-runtime", version.ref = "
 androidx-room-ktx = { module = "androidx.room:room-ktx", version.ref = "room" }
 androidx-room-compiler = { module = "androidx.room:room-compiler", version.ref = "room" }
 androidx-work = { module = "androidx.work:work-runtime-ktx", version.ref = "work" }
+androidx-fragment = { module = "androidx.fragment:fragment-ktx", version.ref = "fragment" }
 androidx-biometric = { module = "androidx.biometric:biometric", version.ref = "biometric" }
 kotlinx-coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "coroutines" }
 kotlinx-coroutines-android = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-android", version.ref = "coroutines" }
