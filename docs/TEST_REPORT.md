@@ -1,6 +1,6 @@
 # Test report
 
-**Date:** 2026-11-18 · **Build environment:** cloud sandbox without Android SDK and without access to Google Maven / Maven Central.
+**Date:** 2026-11-19 · **Build environments:** (1) authoring sandbox without Android SDK – core tests via bundled Kotlin compiler; (2) GitHub Actions `ubuntu-latest` – full Gradle build.
 
 ## Summary – read this first
 
@@ -8,8 +8,10 @@
 |---|---|
 | `:core` security logic (43 unit tests) | **Compiled and run: 43/43 PASS** – raw output in [`test-results/core-unit-tests.txt`](test-results/core-unit-tests.txt) |
 | Threat-feed signing tool ↔ app verifier | **Run: PASS** (openssl-signed feed accepted, tampered copy rejected) |
-| `:app` and `:testbank` Android modules | **NOT COMPILED** – Android SDK / AGP could not be downloaded in this environment |
-| APK build, install, start-up | **NOT RUN** |
+| `:core` tests under real Gradle + JUnit 4 (GitHub Actions) | **PASS** (`.github/workflows/android.yml`, run 44369865777) |
+| `:app` and `:testbank` Android modules | **COMPILED** on GitHub Actions (AGP 8.10.1, Kotlin 2.1.20, compileSdk 36) – 1 deprecation warning, 0 errors |
+| Debug APKs | **BUILT** – downloadable as workflow artifacts `bankvault-debug-apk`, `testbank-debug-apk` |
+| APK install, start-up on a device | **NOT RUN** |
 | On-device acceptance tests 1–15 | **NOT RUN** – need a physical phone. Procedures below |
 
 No result in this file is marked PASS unless it was actually executed. The 15 acceptance tests are therefore **NOT RUN**,

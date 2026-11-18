@@ -14,6 +14,12 @@ cd BANKVAULT
 ```
 If Android Studio proposes newer AGP / Kotlin / library versions (gradle/libs.versions.toml), accepting them is safe.
 
+## Download a ready-made APK (GitHub Actions)
+Every push runs `.github/workflows/android.yml`. Open the repository → **Actions** → **Build APK** → newest green run →
+**Artifacts** → `bankvault-debug-apk` (and `testbank-debug-apk`). Unzip, copy the `.apk` to the phone, allow
+"Install unknown apps" for your file manager, install. Artifacts are kept for 90 days; you can re-run the workflow anytime
+(Actions → Build APK → Run workflow).
+
 ## Release build
 Create `keystore.properties` in the project root (git-ignored):
 ```

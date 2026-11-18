@@ -20,8 +20,8 @@ Anything Android does not allow a normal app to do is shown as *Manual Setup Req
 
 * `:core` – all platform-free security logic. **43/43 unit tests executed and passing** ([output](docs/test-results/core-unit-tests.txt)).
 * `:app` – complete Android source (Compose UI, Room, Keystore, BiometricPrompt, UsageStats monitor, VpnService, root firewall,
-  DevicePolicyManager, Quick Settings tile, widget, WorkManager). **Not yet compiled**: the build sandbox could not download the
-  Android SDK or Google Maven. Build it with `./gradlew :app:assembleDebug` – see [INSTALL](docs/INSTALL.md).
+  DevicePolicyManager, Quick Settings tile, widget, WorkManager). **Builds on GitHub Actions**: every push produces
+  `bankvault-debug-apk` and `testbank-debug-apk` under *Actions → Build APK → latest run → Artifacts*.
 * `:testbank` – dummy bank app for the acceptance tests.
 * On-device acceptance tests: **not run yet** – procedures in [TEST_REPORT](docs/TEST_REPORT.md).
 
