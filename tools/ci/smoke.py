@@ -11,7 +11,7 @@ Usage: smoke.py <bankvault.apk> <testbank.apk>
 """
 import os, re, subprocess, sys, time, xml.etree.ElementTree as ET
 
-PKG = "com.bankvault.debug"
+PKG = "com.bankvault"
 TB = "com.bankvault.testbank"
 PIN, RPIN = "482915", "739164"
 OUT = "out"
