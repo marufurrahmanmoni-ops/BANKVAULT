@@ -306,6 +306,12 @@ def main():
         scroll_to_top()
         check_no_crash(f"tab {tab}")
 
+    # ---------- 7b. About ----------
+    tap("More", exact=True, scroll=False); time.sleep(2)
+    result("About shows developer name", find("Md. Marufur Rahman Moni", timeout=3) is not None or tap("Md. Marufur Rahman Moni"))
+    screen("about")
+    scroll_to_top()
+
     # ---------- 8. Share sheet entry ----------
     sh("am start -a android.intent.action.SEND -t text/plain --es android.intent.extra.TEXT 'verify now http://bkash.com.account-verify.xyz/login' "
        f"-n {PKG}/com.bankvault.ui.ShareReceiverActivity"); time.sleep(4)

@@ -1,5 +1,7 @@
 # BANKVAULT
 
+Developed by **Md. Marufur Rahman Moni**.
+
 Banking-app protection for Android 14–16 (Realme UI / ColorOS focus): a separate PIN/biometric lock, per-app network isolation for
 locked banking apps, phishing/QR/link scanning, tamper monitoring, emergency lock and safe recovery.
 

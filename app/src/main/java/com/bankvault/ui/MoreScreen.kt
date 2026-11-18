@@ -210,6 +210,8 @@ fun MoreScreen(activity: FragmentActivity, graph: AppGraph, fixer: Fixer) {
         RecoverySection(activity, graph)
 
         Button(onClick = { triggerEmergency(activity, "more_screen") }, modifier = Modifier.fillMaxWidth()) { Text("Emergency lock") }
+
+        AboutCard()
         Spacer(Modifier.height(24.dp))
     }
 
