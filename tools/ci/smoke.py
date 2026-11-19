@@ -260,8 +260,12 @@ def main():
     enter_pin(PIN, "Unlock"); time.sleep(5)
     t = screen("after correct PIN")
     result("TestBank usable after PIN", any("run network probes" in x.lower() for x in t))
-    tap("Run network probes", scroll=False)
+    tap("Run network probes", scroll=False); time.sleep(2)
+    screen("after tapping Run network probes")
+    log("VPN state: " + sh("dumpsys connectivity | grep -i -m3 'VPN'").strip()[:400])
     p = probes("unlocked")
+    if "IPv4: OK" not in p:      # one retry: the first tap can land while the lock screen is closing
+        adb("logcat", "-c"); tap("Run network probes", scroll=False); p = probes("unlocked retry")
     result("unlocked: internet back", "IPv4: OK" in p, p)
     check_no_crash("unlock")
 
