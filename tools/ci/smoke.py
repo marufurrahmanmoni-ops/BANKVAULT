@@ -263,6 +263,9 @@ def main():
     tap("Run network probes", scroll=False); time.sleep(2)
     screen("after tapping Run network probes")
     log("FOCUS: " + sh("dumpsys window | grep -E 'mCurrentFocus|mFocusedApp|mFocusedWindow'").strip()[:600])
+    log("INPUT LOG: " + adb("logcat", "-d", "-v", "brief").replace("\r", "")[-200000:].count("\n").__str__() + " lines; relevant:\n" + "\n".join(
+        l for l in adb("logcat", "-d", "-v", "brief").splitlines()
+        if any(k in l for k in ("ntrusted", "InputDispatcher", "ANR", "blocked", "occlu", "TestBank", "BANKVAULT", "Choreographer")))[-3000:])
     log("TOP ACTIVITIES: " + sh("dumpsys activity activities | grep -E 'topResumedActivity|ResumedActivity|mFocusedRootTask'").strip()[:800])
     p = probes("unlocked")
     if "IPv4: OK" not in p:      # one retry: the first tap can land while the lock screen is closing
