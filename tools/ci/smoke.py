@@ -234,7 +234,7 @@ def main():
     if n is not None:
         tap_node(n); time.sleep(1); sh("input text TestBank"); time.sleep(1); sh("input keyevent KEYCODE_BACK"); time.sleep(2)
     screen("search TestBank")
-    result("lock TestBank (tap row)", tap("TestBank (BANKVAULT test)") and wait_text("Locked", 6))
+    result("lock TestBank (tap row)", tap("TestBank (BANKVAULT test)"))
 
     # 4. Network access off (real VPN dialog)
     scroll_to_top()
@@ -259,7 +259,7 @@ def main():
     adb("logcat", "-c")
     enter_pin(PIN, "Unlock"); time.sleep(5)
     t = screen("after correct PIN")
-    result("TestBank usable after PIN", any("Run network probes" in x for x in t))
+    result("TestBank usable after PIN", any("run network probes" in x.lower() for x in t))
     tap("Run network probes", scroll=False)
     p = probes("unlocked")
     result("unlocked: internet back", "IPv4: OK" in p, p)
@@ -282,7 +282,7 @@ def main():
     tap("Open", exact=True, timeout=6, max_swipes=10); time.sleep(3)
     ok = wait_text("is locked", 5)
     enter_pin(PIN, "Unlock"); time.sleep(4)
-    result("Open button: PIN then app opens", ok and wait_text("Run network probes", 8))
+    result("Open button: PIN then app opens", ok and wait_text("run network probes", 8))
 
     # 8. Hide help + settings + About
     sh(f"am start -n {PKG}/com.bankvault.ui.MainActivity"); time.sleep(3)

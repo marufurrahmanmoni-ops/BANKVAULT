@@ -52,11 +52,13 @@ object Probes {
         lines.joinToString("\n").also { Log.i("TestBank", it.replace("\n", " | ")) }
     }
 
-    /** Each probe gets at most 12 s (DNS has no timeout of its own on Android). */
-    private suspend fun timed(name: String, block: () -> String): String =
-        kotlinx.coroutines.withTimeoutOrNull(12_000) {
-            kotlinx.coroutines.runInterruptible(Dispatchers.IO) { probe(name, block) }
-        } ?: "$name: BLOCKED (timeout)"
+    /** Each probe runs on its own thread and gets at most 12 s (a DNS lookup cannot be interrupted). */
+    private fun timed(name: String, block: () -> String): String {
+        var out: String? = null
+        val t = Thread { out = probe(name, block) }.apply { isDaemon = true; start() }
+        t.join(12_000)
+        return out ?: "$name: BLOCKED (timeout)"
+    }
 
     private inline fun probe(name: String, block: () -> String) =
         try { "$name: OK (${block().take(40).replace('\n', ' ')})" } catch (e: Exception) { "$name: BLOCKED (${e.javaClass.simpleName})" }
