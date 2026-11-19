@@ -262,7 +262,8 @@ def main():
     result("TestBank usable after PIN", any("run network probes" in x.lower() for x in t))
     tap("Run network probes", scroll=False); time.sleep(2)
     screen("after tapping Run network probes")
-    log("VPN state: " + sh("dumpsys connectivity | grep -i -m3 'VPN'").strip()[:400])
+    log("FOCUS: " + sh("dumpsys window | grep -E 'mCurrentFocus|mFocusedApp|mFocusedWindow'").strip()[:600])
+    log("TOP ACTIVITIES: " + sh("dumpsys activity activities | grep -E 'topResumedActivity|ResumedActivity|mFocusedRootTask'").strip()[:800])
     p = probes("unlocked")
     if "IPv4: OK" not in p:      # one retry: the first tap can land while the lock screen is closing
         adb("logcat", "-c"); tap("Run network probes", scroll=False); p = probes("unlocked retry")
