@@ -234,11 +234,11 @@ def main():
     if n is not None:
         tap_node(n); time.sleep(1); sh("input text TestBank"); time.sleep(1); sh("input keyevent KEYCODE_BACK"); time.sleep(2)
     screen("search TestBank")
-    result("lock TestBank switch", toggle_for("TestBank (BANKVAULT test)") and wait_text("Locked", 6))
+    result("lock TestBank (tap row)", tap("TestBank (BANKVAULT test)") and wait_text("Locked", 6))
 
     # 4. Network access off (real VPN dialog)
     scroll_to_top()
-    toggle_for("Block internet for locked apps"); time.sleep(3)
+    tap("Block internet for locked apps"); time.sleep(3)
     screen("vpn dialog")
     tap("OK", exact=True, scroll=False, timeout=8); time.sleep(6)
     t = screen("after network on")
@@ -279,7 +279,7 @@ def main():
     n = find("Search", timeout=4)
     if n is not None:
         tap_node(n); time.sleep(1); sh("input text TestBank"); sh("input keyevent KEYCODE_BACK"); time.sleep(2)
-    tap("Open", exact=True, timeout=6); time.sleep(3)
+    tap("Open", exact=True, timeout=6, max_swipes=10); time.sleep(3)
     ok = wait_text("is locked", 5)
     enter_pin(PIN, "Unlock"); time.sleep(4)
     result("Open button: PIN then app opens", ok and wait_text("Run network probes", 8))
@@ -290,7 +290,7 @@ def main():
     n = find("Search", timeout=4)
     if n is not None:
         tap_node(n); time.sleep(1); sh("input text TestBank"); sh("input keyevent KEYCODE_BACK"); time.sleep(2)
-    tap("Hide", exact=True, timeout=6); time.sleep(2)
+    tap("Hide", exact=True, timeout=6, max_swipes=10); time.sleep(2)
     screen("hide help")
     result("Hide shows instructions (no Device Owner)", wait_text("Hide apps", 5))
     tap("Copy command", scroll=False); time.sleep(1)

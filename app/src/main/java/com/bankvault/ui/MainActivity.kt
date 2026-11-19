@@ -20,6 +20,7 @@ import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -299,7 +300,8 @@ class MainActivity : FragmentActivity() {
             // ---- network access off
             item {
                 Section("Network access off") {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
+                    Row(Modifier.clickable { if (!netOn) turnOnNetBlock() else { Store.setNetBlock(false); NetBlock.update(applicationContext) } },
+                        verticalAlignment = Alignment.CenterVertically) {
                         Column(Modifier.weight(1f)) {
                             Text("Block internet for locked apps")
                             Dim("Locked apps get no Wi-Fi or mobile data until you unlock them. Uses a local VPN on this phone – no server, nothing is read or sent. Other apps keep working.")
@@ -326,10 +328,15 @@ class MainActivity : FragmentActivity() {
                     if (apps.isEmpty()) Dim("Loading apps…")
                 }
             }
-            items(apps.filter { query.isBlank() || it.label.contains(query, true) }, key = { it.pkg }) { app ->
+            items(apps.filter { query.isBlank() || it.label.contains(query, true) }.sortedByDescending { it.pkg in locked }, key = { it.pkg }) { app ->
                 val isLocked = app.pkg in locked
+                fun setLock(on: Boolean) {
+                    Store.setLocked(app.pkg, on)
+                    if (!on) { Unlocks.relock(app.pkg); Hider.unhide(applicationContext, app.pkg); Store.setHidden(app.pkg, false) }
+                    Locker.refresh(applicationContext)
+                }
                 Column(Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
+                    Row(Modifier.fillMaxWidth().clickable { setLock(!isLocked) }.padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
                         if (app.icon != null) Image(app.icon, null, Modifier.size(36.dp)) else Spacer(Modifier.size(36.dp))
                         Spacer(Modifier.width(12.dp))
                         Column(Modifier.weight(1f)) {
@@ -337,11 +344,7 @@ class MainActivity : FragmentActivity() {
                             if (isLocked) Dim(if (app.pkg in unlockedApps) "Unlocked for now" else "Locked" +
                                 (if (netOn) " · no internet" else "") + (if (app.pkg in hidden && ownerMode) " · hidden" else ""))
                         }
-                        Switch(isLocked, { on ->
-                            Store.setLocked(app.pkg, on)
-                            if (!on) { Unlocks.relock(app.pkg); Hider.unhide(applicationContext, app.pkg); Store.setHidden(app.pkg, false) }
-                            Locker.refresh(applicationContext)
-                        })
+                        Switch(isLocked, { on -> setLock(on) })
                     }
                     if (isLocked) Row(Modifier.padding(start = 48.dp)) {
                         TextButton(onClick = {
