@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
@@ -61,7 +62,9 @@ class LockActivity : FragmentActivity() {
         val open = intent.getBooleanExtra(EXTRA_OPEN, false)
         val label = runCatching { packageManager.getApplicationLabel(packageManager.getApplicationInfo(pkg, PackageManager.MATCH_UNINSTALLED_PACKAGES)).toString() }.getOrDefault(pkg)
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) { override fun handleOnBackPressed() = goHome() })
-        setContent { Theme { Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) { Screen(pkg, label, open) } } }
+        setContent { Theme { Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
+            Box(Modifier.fillMaxSize().safeDrawingPadding()) { Screen(pkg, label, open) }
+        } } }
     }
 
     @Composable

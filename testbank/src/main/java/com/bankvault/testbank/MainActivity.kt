@@ -79,7 +79,7 @@ class MainActivity : Activity() {
         val run = Button(this).apply { text = "Run network probes" }
         val bg = Button(this).apply { text = "Start background pinger (test 6)" }
         val root = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; addView(run); addView(bg); addView(out) }
-        setContentView(ScrollView(this).apply { addView(root) })
+        setContentView(ScrollView(this).apply { addView(root); fitsSystemWindows = true }) // stay below status bar (Android 15 edge-to-edge)
         val cm = getSystemService(ConnectivityManager::class.java)
         run.setOnClickListener { out.text = "Running…"; scope.launch { out.text = Probes.runAll(cm) } }
         bg.setOnClickListener { startService(Intent(this, BackgroundPinger::class.java)); out.text = "Background pinger started – see logcat -s TestBank" }

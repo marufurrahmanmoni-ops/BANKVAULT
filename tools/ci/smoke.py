@@ -268,8 +268,7 @@ def main():
         if any(k in l for k in ("ntrusted", "InputDispatcher", "ANR", "blocked", "occlu", "TestBank", "BANKVAULT", "Choreographer")))[-3000:])
     log("TOP ACTIVITIES: " + sh("dumpsys activity activities | grep -E 'topResumedActivity|ResumedActivity|mFocusedRootTask'").strip()[:800])
     p = probes("unlocked")
-    if "IPv4: OK" not in p:      # one retry: the first tap can land while the lock screen is closing
-        adb("logcat", "-c"); tap("Run network probes", scroll=False); p = probes("unlocked retry")
+
     result("unlocked: internet back", "IPv4: OK" in p, p)
     check_no_crash("unlock")
 
@@ -291,6 +290,14 @@ def main():
     ok = wait_text("is locked", 5)
     enter_pin(PIN, "Unlock"); time.sleep(4)
     result("Open button: PIN then app opens", ok and wait_text("run network probes", 8))
+
+    # 7b. "Lock all now" at the very top of the screen (edge-to-edge check)
+    sh(f"am start -n {PKG}/com.bankvault.ui.MainActivity"); time.sleep(3)
+    unlock_bankvault(); scroll_to_top()
+    n = find("Lock all now", timeout=4)
+    top_ok = n is not None and center(n)[1] > 90     # must sit below the status bar
+    if n is not None: tap_node(n)
+    result("top button below status bar (Lock all now)", top_ok and check_no_crash("lock all"), n.get("bounds") if n is not None else "")
 
     # 8. Hide help + settings + About
     sh(f"am start -n {PKG}/com.bankvault.ui.MainActivity"); time.sleep(3)

@@ -29,6 +29,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
@@ -96,7 +97,10 @@ class MainActivity : FragmentActivity() {
         window.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
         if (Build.VERSION.SDK_INT >= 33) setRecentsScreenshotEnabled(false)
         Store.init(this)
-        setContent { Theme { Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) { Root() } } }
+        setContent { Theme { Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
+            // Android 15+ draws apps edge-to-edge: keep content clear of the status and navigation bars.
+            Box(Modifier.fillMaxSize().safeDrawingPadding()) { Root() }
+        } } }
     }
 
     override fun onStart() { super.onStart(); openingSettings = false }
