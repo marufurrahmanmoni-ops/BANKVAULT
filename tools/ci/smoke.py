@@ -295,7 +295,7 @@ def main():
     sh(f"am start -n {PKG}/com.bankvault.ui.MainActivity"); time.sleep(3)
     unlock_bankvault(); scroll_to_top()
     n = find("Lock all now", timeout=4)
-    top_ok = n is not None and center(n)[1] > 90     # must sit below the status bar
+    top_ok = n is not None and center(n)[1] > size()[1] * 0.045   # below the status bar (~24dp)
     if n is not None: tap_node(n)
     result("top button below status bar (Lock all now)", top_ok and check_no_crash("lock all"), n.get("bounds") if n is not None else "")
 
